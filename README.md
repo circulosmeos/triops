@@ -37,7 +37,7 @@ For other compilers or platforms, modify the gcc command line contained in the M
 
 Examples of use:   
 
->    $ .\crypty.exe   
+>    $ ./crypty.exe   
 
     Invalid parameters. Command line must be:   
 
