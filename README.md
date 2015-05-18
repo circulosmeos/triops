@@ -22,17 +22,23 @@ Features:
 Known limitations:   
 
 * Files higher than 4 GiB cannot be managed and will produce unexpected outputs: be warned!   
+   
+   
+   
+Before compiling, check in crypty.h that next values correctly adjust to your platform, modifying them as convenient:   
 
- 
+>    #undef WINDOWS_PLATFORM     // Compile for Unix or for Windows: #undef o #define   
+
+>    #define LOCAL_LITTLE_ENDIAN    // it is important to undef in order to compile on Big Endian processors   
 
 Compilation on linux with gcc: a one-line "Makefile" file is provided:   
 
 >    $ bash Makefile   
 
 For other compilers or platforms, modify the gcc command line contained in the Makefile file as convenient. Remember to use "-O3" ([fast executable optimizations](https://gcc.gnu.org/onlinedocs/gcc-4.7.1/gcc/Optimize-Options.html#Optimize-Options)). 
-
- 
-
+   
+   
+   
 Examples of use:   
 
 >    $ ./crypty.exe   
