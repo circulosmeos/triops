@@ -1,6 +1,6 @@
 crypty: a simple command line tool for encryption/decryption of files.   
 
-It uses CHACHA20 as algorithm for encryption/decryption and KECCAK-512 as hash algorithm.   
+It uses [CHACHA20](http://en.wikipedia.org/wiki/Salsa20#ChaCha_variant) as algorithm for encryption/decryption and [KECCAK](http://en.wikipedia.org/wiki/SHA-3)-512 as hash algorithm.   
 
 Executables for some platforms (linux, Windows, HP-UX and Solaris) are available [here](https://circulosmeos.wordpress.com/2015/05/18/crypty-a-versatile-multiplatform-encryption-tool-using-chacha20-keccak).   
 
@@ -29,9 +29,7 @@ Compilation on linux with gcc: a one-line "Makefile" file is provided:
 
 >    $ bash Makefile   
 
-For other compilers or platforms, modify the gcc command line contained in the Makefile file as convenient. Remember to use "-O3" (fast executable optimizations). For example for a Windows with gcc on an AMD Bulldozer (bdver2):   
-
->    C:\temporal> gcc -iquote . crypty.c -I chacha20 -I chacha20/e -I chacha20/include chacha20/chacha.c chacha20/api.c -I keccak keccak/hash.c keccak/keccak.c -o crypty.exe -O3  -mtune=bdver2   
+For other compilers or platforms, modify the gcc command line contained in the Makefile file as convenient. Remember to use "-O3" ([fast executable optimizations](https://gcc.gnu.org/onlinedocs/gcc-4.7.1/gcc/Optimize-Options.html#Optimize-Options)). 
 
  
 
