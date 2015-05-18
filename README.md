@@ -79,13 +79,13 @@ Example of encryption without storing password hash (add a 5th non-empty argumen
 
      
 
-Algorithms are based on reference implementation of CHACHA20 implemented by algorithm creator (D. J. Bernstein), and the implementation of KECCAK made by Thomas Pornin. Both can be found on this website:   
+Algorithms are based on reference implementation of CHACHA20 implemented by algorithm creator (D. J. Bernstein), and the implementation of KECCAK made by Thomas Pornin. Both can be found at this website:   
 
 [http://hyperelliptic.org/ebats/supercop-20141124.tar.bz2](http://hyperelliptic.org/ebats/supercop-20141124.tar.bz2)   
 
-    \supercop-20141124\crypto_stream\chacha20\e\ref\   
+    /supercop-20141124/crypto_stream/chacha20/e/ref/   
 
-    \supercop-20141124\crypto_hash\keccakc512\sphlib\   
+    /supercop-20141124/crypto_hash/keccakc512/sphlib/   
 
 CHACHA20 algorithm has been tested against test vectors found here:   
 
@@ -97,5 +97,5 @@ KECCAK algorithm has been tested against test vectors found here:
 
 [http://keccak.noekeon.org/KeccakKAT-3.zip](http://keccak.noekeon.org/KeccakKAT-3.zip)   
 
-    \KeccakKAT\ShortMsgKAT_512.txt   
+    /KeccakKAT/ShortMsgKAT_512.txt   
 
