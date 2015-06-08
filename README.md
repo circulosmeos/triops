@@ -2,7 +2,7 @@ triops: a simple command line tool for encryption/decryption of files.
 
 It uses [CHACHA20](http://en.wikipedia.org/wiki/Salsa20#ChaCha_variant) as algorithm for encryption/decryption and [KECCAK](http://en.wikipedia.org/wiki/SHA-3)-512 as hash algorithm.   
 
-Executables for some platforms (linux, Windows, HP-UX and Solaris) are available [here](https://circulosmeos.wordpress.com/2015/05/18/triops-a-cmdline-multiplatform-encryption-tool-using-chacha20-keccak).   
+Executables for some platforms (linux, Windows, HP-UX and Solaris) are available [here](https://circulosmeos.wordpress.com/2015/05/18/triops-a-multiplatform-cmdline-encryption-tool-using-chacha20-keccak).   
 
 Features:   
 
