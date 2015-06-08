@@ -1,8 +1,8 @@
-crypty: a simple command line tool for encryption/decryption of files.   
+triops: a simple command line tool for encryption/decryption of files.   
 
 It uses [CHACHA20](http://en.wikipedia.org/wiki/Salsa20#ChaCha_variant) as algorithm for encryption/decryption and [KECCAK](http://en.wikipedia.org/wiki/SHA-3)-512 as hash algorithm.   
 
-Executables for some platforms (linux, Windows, HP-UX and Solaris) are available [here](https://circulosmeos.wordpress.com/2015/05/18/crypty-a-versatile-multiplatform-encryption-tool-using-chacha20-keccak).   
+Executables for some platforms (linux, Windows, HP-UX and Solaris) are available [here](https://circulosmeos.wordpress.com/2015/05/18/triops-a-cmdline-multiplatform-encryption-tool-using-chacha20-keccak).   
 
 Features:   
 
@@ -25,7 +25,7 @@ Known limitations:
    
    
    
-Before compiling, check in crypty.h that next values correctly adjust to your platform, modifying them as convenient:   
+Before compiling, check in triops.h that next values correctly adjust to your platform, modifying them as convenient:   
 
 >    #undef WINDOWS_PLATFORM     // Compile for Unix or for Windows: #undef o #define   
 
@@ -41,26 +41,26 @@ For other compilers or platforms, modify the gcc command line contained in the M
    
 Examples of use:   
 
->    $ ./crypty.exe   
+>    $ ./triops.exe   
 
     Invalid parameters. Command line must be:   
 
-    crypty <file with passphrase |   
+    triops <file with passphrase |   
     _passphrase rounded by '_' (__=>keyboard)_>   
     <file to decrypt> [path to decrypted file|=]   
     [*=encrypt .$#3] [*=don't store password hash (store IV+0x0's)]   
 
 Example of encryption: encrypt plaintext.txt file, overwriting it, using password stored in file "password.txt". Resulting file will be renamed plaintext.txt.$#3   
 
->    $ ./crypty.exe password.txt plaintext.txt = 3   
+>    $ ./triops.exe password.txt plaintext.txt = 3   
 
 Example of encryption: encrypt plaintext.txt file on encryptedtext.txt.$#3, using password stored in file "password.txt" (Caution: usually text files end with a "return" (line feed, \n, \r\n, \r) which will be used as the rest of chars in the file as part of the password. (Use $ cat > password + Ctrl+D to avoid this)):   
 
->    $ ./crypty.exe password.txt plaintext.txt encryptedtext.txt 3   
+>    $ ./triops.exe password.txt plaintext.txt encryptedtext.txt 3   
 
 Example of encryption: encrypt plaintext.txt file, overwriting it, using the password introduced with keyboard:   
 
->    $ ./crypty.exe \_\_ plaintext.txt = 3   
+>    $ ./triops.exe \_\_ plaintext.txt = 3   
 
     Enter password and press [enter]:   
 
@@ -69,17 +69,17 @@ Example of encryption: encrypt plaintext.txt file, overwriting it, using the pas
 
     completed   
 
-Example of encryption: encrypt plaintext.txt file, overwriting it, using the password "crypty!":   
+Example of encryption: encrypt plaintext.txt file, overwriting it, using the password "triops!":   
 
->    $ ./crypty.exe \_crypty!\_ plaintext.txt = 3   
+>    $ ./triops.exe \_triops!\_ plaintext.txt = 3   
 
-Example of decryption: decrypt plaintext.txt.$#3 file, overwriting it, using the password "crypty!":   
+Example of decryption: decrypt plaintext.txt.$#3 file, overwriting it, using the password "triops!":   
 
->    $ ./crypty.exe \_crypty!\_ plaintext.txt.\$\\#3   
+>    $ ./triops.exe \_triops!\_ plaintext.txt.\$\\#3   
 
 Example of encryption without storing password hash (add a 5th non-empty argument):   
 
->    $ ./crypty.exe \_crypty!\_ plaintext.txt = 3 1   
+>    $ ./triops.exe \_triops!\_ plaintext.txt = 3 1   
 
      
 

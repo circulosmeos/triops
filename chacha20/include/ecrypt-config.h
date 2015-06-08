@@ -6,8 +6,8 @@
 #define ECRYPT_CONFIG
 
 /* ------------------------------------------------------------------------- */
-// v7: endiannes defined on crypty.h :
-#include "crypty.h"
+// v7: endiannes defined on triops.h :
+#include "triops.h"
 #ifdef LOCAL_LITTLE_ENDIAN
 #define ECRYPT_LITTLE_ENDIAN
 #else

@@ -48,7 +48,7 @@
 #define SPH_TYPES_H__
 
 // v7:
-#include "crypty.h"
+#include "triops.h"
  
 #include <limits.h>
 
@@ -525,7 +525,7 @@ typedef __arch_dependant__ sph_s64;
  * type (and the <code>sph_u64</code> type also, if it is defined) has
  * an exact width (i.e. exactly 32-bit, respectively 64-bit).
  */
-// v7: endiannes defined on crypty.h :
+// v7: endiannes defined on triops.h :
 #ifdef LOCAL_LITTLE_ENDIAN
 #define SPH_LITTLE_ENDIAN
 #else
