@@ -1,1 +1,1 @@
-gcc -iquote . crypty.c -I chacha20 -I chacha20/e -I chacha20/include chacha20/chacha.c chacha20/api.c -I keccak keccak/hash.c keccak/keccak.c -o crypty.exe -O3
+gcc -iquote . triops.c -I chacha20 -I chacha20/e -I chacha20/include chacha20/chacha.c chacha20/api.c -I keccak keccak/hash.c keccak/keccak.c -o triops.exe -O3
