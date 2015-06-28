@@ -72,7 +72,7 @@ int getch(void);
 
 
 
-#define BUFFERSIZE 16384
+#define BUFFERSIZE 16384 // for CHACHA20: multiple of 64 bytes to avoid bad implementation (http://goo.gl/DHCLz1)
 #define KEYSIZE_v3 32 	// KEYSIZE_v3  is for CHACHA20 = 256 bits (256/8=32 bytes)
 #define IVSIZE_v3 8 	// IVSIZE_v3   is for CHACHA20 =  64 bits ( 64/8= 8 bytes)
 #define HASHSIZE_v3 64 	// HASHSIZE_v3 is for KECCAK-512=512 bits (512/8=64 bytes)
