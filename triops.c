@@ -225,7 +225,7 @@ int local_triops (int argc, char* argv[])
 	unsigned long long	nBytesRead, nBytesWritten;
 	FILE *      hFile;
 	FILE *      hFileOut;
-	FILE *      hFileCola;
+	FILE *      hFileTail;
 	char		szFile [MAX_PATH];
 	char		szNewFile [MAX_PATH];
 	char		szPass [MAX_PATH];
@@ -614,13 +614,13 @@ int local_triops (int argc, char* argv[])
 	// if encrypting, IV + password hash must be stored:
 	if (bEncrypt) {
 		if (bOutputToTheSameFile) {
-			hFileCola=hFile;
+			hFileTail=hFile;
 		} else {
-			hFileCola=hFileOut;
+			hFileTail=hFileOut;
 		}
 		// IV:
 		if (triopsVersion==TRIOPS_V3)
-			fwrite(iv_v3.byteIV, IVSIZE_v3, 1, hFileCola );
+			fwrite(iv_v3.byteIV, IVSIZE_v3, 1, hFileTail );
 		// ~ password hash:
 		if (!bDoNotStorePasswordHash) {
 			if (triopsVersion==TRIOPS_V3)
@@ -633,7 +633,7 @@ int local_triops (int argc, char* argv[])
 				for (i=0; i++; i<HASHSIZE_v3) { matrix3[i]=0x0; }
 		}
 		if (triopsVersion==TRIOPS_V3)
-			fwrite(matrix3, HASHSIZE_v3, 1, hFileCola );
+			fwrite(matrix3, HASHSIZE_v3, 1, hFileTail );
 	}
 
 	// close the file
