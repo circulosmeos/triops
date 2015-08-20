@@ -2,7 +2,7 @@ triops: a simple command line tool for encryption/decryption of files.
 
 It uses [CHACHA20](http://en.wikipedia.org/wiki/Salsa20#ChaCha_variant) as algorithm for encryption/decryption and [KECCAK](http://en.wikipedia.org/wiki/SHA-3)-512 as hash algorithm.   
 
-Executables for some platforms (linux, Windows, HP-UX and Solaris) are available [here](https://circulosmeos.wordpress.com/2015/05/18/triops-a-multiplatform-cmdline-encryption-tool-using-chacha20-keccak).   
+Executables for v7.1 on some platforms (linux, Windows, HP-UX and Solaris) are available [here](https://circulosmeos.wordpress.com/2015/05/18/triops-a-multiplatform-cmdline-encryption-tool-using-chacha20-keccak).   
 
 Features:   
 
@@ -16,6 +16,7 @@ Features:
 * Password can be obtained from keyboard, command line or from a file. Caution: usually text files end with a "return" (line feed, \n, \r\n, \r) which will be used as the rest of chars in the file as part of the password. (Use $ cat > password + Ctrl+D to avoid this). Also note that there's a limit on the number of characters that will be read from the file... that'd be about two hundred chars at least (!).
 * Speed is extremely high, as CHACHA20 is a very fast encryption algorithm: it is as fast as RC4.
 * Reduced program size: < 100 kiB on all platforms.
+* Binary files can be used as passwords (from v7.2): for example jpg images, etc. Caution: do not lose this 'password' file and do not modify it!
 * easily portable to Android as a JNI library. Check "ANDROID_LIBRARY" in the source code.
 * Licensed as GPL v3.
 

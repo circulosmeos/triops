@@ -14,6 +14,8 @@
 //		an incorrect password, so content could be irrecoverable). 
 //		This hash is *not* the same used to encrypt!
 // *	File modification time is maintained. File dates are important!
+// *	Files can be used as passwords: for example jpg images, etc.
+//		(do not lose this 'password' file and do not modify it!)
 // 
 // Type ./triops to obtain command line help.
 //
@@ -62,6 +64,7 @@ int getch(void);
 
 #include "ecrypt-sync.h"
 #include "crypto_hash.h"
+#include "sph_keccak.h"
 
 
 
@@ -72,10 +75,14 @@ int getch(void);
 
 
 
-#define BUFFERSIZE 16384 // for CHACHA20: multiple of 64 bytes to avoid bad implementation (http://goo.gl/DHCLz1)
+#define BUFFERSIZE 16384
 #define KEYSIZE_v3 32 	// KEYSIZE_v3  is for CHACHA20 = 256 bits (256/8=32 bytes)
 #define IVSIZE_v3 8 	// IVSIZE_v3   is for CHACHA20 =  64 bits ( 64/8= 8 bytes)
 #define HASHSIZE_v3 64 	// HASHSIZE_v3 is for KECCAK-512=512 bits (512/8=64 bytes)
+
+#define MAX_PASSWORD_LENGTH 261 // maximum length of a password introduced with keyboard:
+								// 260+1(\n) at minimum to make this value (user&code') backwards compatible:
+								// MAX_PASSWORD_LENGTH must be >= MAX_PATH (260) > HASHSIZE_v3
 
 typedef enum {	CheckKeyIsValid_FALSE=0,
 				CheckKeyIsValid_TRUE=1,
@@ -226,11 +233,11 @@ int local_triops (int argc, char* argv[])
 	FILE *      hFile;
 	FILE *      hFileOut;
 	FILE *      hFileTail;
-	char		szFile [MAX_PATH];
-	char		szNewFile [MAX_PATH];
-	char		szPass [MAX_PATH];
-	char		szPassFile [MAX_PATH];
-	BYTE		lpFileBuffer [BUFFERSIZE];
+	char		szFile 		[MAX_PATH];
+	char		szNewFile 	[MAX_PATH];
+	char		szPass [MAX_PASSWORD_LENGTH];
+	char		szPassFile 	[MAX_PATH];
+	BYTE		lpFileBuffer[BUFFERSIZE];
 	//BOOL		bOutputToTheSameFile; 		// defined as global above
 	BOOL		bEncrypt;
 	BOOL		bDoNotStorePasswordHash;
@@ -321,7 +328,7 @@ int local_triops (int argc, char* argv[])
 	// obtain password from file:
 	if (!obtainPassword (szPassFile, szPass))
 	{
-		printf ("\nCould not open %s.\n\n", szPassFile);
+		printf ("\nCould not obtain password.\nAborted.\n\n");
 		return 1;
 	}
 
@@ -750,9 +757,9 @@ truncateFileBySize ( LPBYTE szFile, unsigned long long bytesToTruncate )
 
 }
 
-// returns the string contained in the file passed as a fs path.
-// the string is supossed to be "short": the password.
-// only MAX_PATH bytes are read from the file.
+// modification for using binary files as passwords:
+// returns the hash calculated from the contents 
+// of the file passed as a fs path.
 // if the fs path passed starts and ends with '_' char, 
 // the enclosed string is the password itself.
 BOOL
@@ -760,7 +767,10 @@ obtainPassword (LPBYTE szFile, LPBYTE szPass)
 {
 	FILE *      hFile;
 	DWORD       nBytesRead;
+	BYTE		lpFileBuffer [BUFFERSIZE];
 	int 		i, c;
+	unsigned long long 	  lFileSize;
+	sph_keccak512_context mc;
 
 	if (szFile[0]=='_' && szFile[strlen(szFile)-1]=='_') { // strlen(szFile)>0 always
 
@@ -770,7 +780,7 @@ obtainPassword (LPBYTE szFile, LPBYTE szPass)
 			printf("\n\nEnter password and press [enter]: ");
 			fflush(stdout); // flash stdout
 			i=0;
-			while (i<MAX_PATH && (c = getch()) != 13) { // read chars until "\n"
+			while ( i<(MAX_PASSWORD_LENGTH-1) && (c = getch()) != 13 ) { // read chars until "\n"
 				if (c!=8 && c!=127) {
 					szPass[i]=(char)c;
 					i++;
@@ -791,39 +801,106 @@ obtainPassword (LPBYTE szFile, LPBYTE szPass)
 			// delusion eavesdropping password length!
 			for (i = 0;  i < strlen(szPass);  i++, putchar(8), putchar(32), putchar(8));
 			printf("\n\n");
+			// if password length reaches MAX_PASSWORD_LENGTH, input ends abruptly, warn it!
+			if ( i==(MAX_PASSWORD_LENGTH-1) ) {
+				printf ("WARNING: password exceeded max length, and it was truncated to %i chars.\n",
+					MAX_PASSWORD_LENGTH);
+				printf ("Should process continue (y/n)? : ");
+				c=getch();
+				if (c!=121) { 	// anything different from "y"
+					printf ("n\n\n");
+					return FALSE;
+				} else {		// ok, continue
+					printf ("y\n\n");
+				}
+			}
 		} else {
+			// ! (strlen(szFile)==2)
 #endif
 			memcpy(szPass, szFile+1, strlen(szFile)-2); // done !!!
 			szPass[strlen(szFile)-2]=0x0; // important !!! to mark the end of the string
 
+		} // else ends ( if (strlen(szFile)==2) ) 
+		  // But:
+		  // #ifndef ANDROID_LIBRARY => if (szFile[0]=='_' && szFile[strlen(szFile)-1]=='_') {...}
+
+		// and now, directly calculate hash here:
+		if (triopsVersion == TRIOPS_V3) {
+			crypto_hash((unsigned char *)szPass, (unsigned char *)szPass, strlen(szPass));
+			/* DEBUG: check value:
+			printf ("calculated hash from file: ");
+			for (i=0; i<16; i++) printf(" %08lx",((LPDWORD)szPass)[i]);
+			*/
 		}
+
 
 #ifndef ANDROID_LIBRARY
 	} else {
+	// ! (szFile[0]=='_' && szFile[strlen(szFile)-1]=='_') 
 
 		hFile = fopen(szFile, "rb" );
 		if (hFile == NULL)
 		{
-			printf ("\nError opening %s\n", szFile);
+			fclose (hFile);
+			printf ("\nError opening '%s'\n", szFile);
 			return FALSE;
 		}
 
-		nBytesRead=fread(szPass, MAX_PATH, 1, hFile);
-		if (feof(hFile)) {
-			// read size unknown: it must be all the file (<MAX_PATH):
-			nBytesRead=(DWORD)FileSize(szFile);
-		}
-
-		if (nBytesRead == 0)
+		lFileSize=(unsigned long long)FileSize(szFile);
+		if (lFileSize == 0)
 		{
-			printf ("\nEmpty password!!!. But process continues as it'd be '0x0'.\n");
+			fclose (hFile);
+			printf ("\nError: file '%s' is empty!\n", szFile);
+			return FALSE;
 		}
 
-		// capital!: string must end with 0x0 !!!:
-		szPass[nBytesRead]=0x0;
+		// prepare environment to read the contents of the file used as password,
+		// and calculate its hash.
+		unsigned long long	lBlockTotal;	// counts total number of <=BUFFERSIZE blocks in hFile
+		unsigned long long	lBlockNumber;	// counts number of <=BUFFERSIZE blocks processed in hFile
+		lBlockNumber=0;
+		lBlockTotal=lFileSize/(unsigned long long)BUFFERSIZE; // this truncates result so:
+		if ( lFileSize % (unsigned long long)BUFFERSIZE != 0 )
+			lBlockTotal++;
+
+		if (triopsVersion == TRIOPS_V3) {
+			sph_keccak512_init(&mc);
+		}
+		
+		// read the contents of the file used as password.
+		// it can contain plain text password (no final \n or it'll be included) or binary data.
+		do
+		{
+			lBlockNumber++;
+			// size_t fread(void *ptr, size_t size, size_t n, FILE *stream);
+			nBytesRead=fread(lpFileBuffer, BUFFERSIZE, 1, hFile);
+			if (nBytesRead || feof(hFile) )
+			{
+				if (feof(hFile)) {
+					nBytesRead = lFileSize % (unsigned long long)BUFFERSIZE;
+				} else {
+					// real nBytesRead, because nBytesRead is now just '1'
+					nBytesRead = nBytesRead * (unsigned long long)BUFFERSIZE;
+				}
+				if (triopsVersion==TRIOPS_V3) {
+					sph_keccak512(&mc, lpFileBuffer, nBytesRead);
+				}
+
+			}
+		} while (lBlockNumber<lBlockTotal);
+
+		if (triopsVersion==TRIOPS_V3) {
+			sph_keccak512_close(&mc,szPass);
+			/* DEBUG: check value:
+			printf ("calculated hash from file: ");
+			for (i=0; i<16; i++) printf(" %08lx",((LPDWORD)szPass)[i]);
+			*/
+		}
 
 		fclose (hFile);
-	}
+
+	} // else ends ( if (szFile[0]=='_' && szFile[strlen(szFile)-1]=='_') )
+
 #endif
 
 	return TRUE;
@@ -839,8 +916,10 @@ void EliminatePasswords(LPBYTE szPassFile, LPBYTE szPass)
 
 	// both variables are filled: szPassFile isn't needed anymore anyway.
 	for (i=0; i++; i<MAX_PATH) {
-		szPassFile[i]=0x0;
-		szPass[i]=0x0;
+		szPassFile[i]=0xff;
+	}
+	for (i=0; i++; i<MAX_PASSWORD_LENGTH) {
+		szPass[i]=0xff;
 	}
 
 }
@@ -997,18 +1076,24 @@ CheckKeyIsValid_v3 (LPSTR szPass, LPBYTE lpKey, LPBYTE lpIV, LPDWORD lpHashedKey
 	while (*hex) { sscanf(hex, "%2hhx", byte++); hex += 2; }*/
 
 	// calculate the theoretical hashedkey from the IV and passed password:
+/*
 	crypto_hash(testKey.keyB, (unsigned char *)szPass, strlen(szPass));
+*/
 
 	/* DEBUG: KECCAK-512:*/
 	/*printf ("KECCAK-512: ");
 	for (i=0; i<16; i++) printf(" %08lx",testKey.keyW[i]);*/
 
 	// copy the key
+/*	
 	memcpy(lpKey, testKey.keyB, HASHSIZE_v3);
+*/
+	memcpy(lpKey, (LPBYTE)szPass, HASHSIZE_v3);
+	memcpy(testKey.keyB, (LPBYTE)szPass, HASHSIZE_v3);
 
 	/* DEBUG: check value:
 	printf ("calculated: ");
-	for (i=0; i<8; i++) printf(" %08lx",testKey.keyW[i]);
+	for (i=0; i<16; i++) printf(" %08lx",testKey.keyW[i]);
 	*/
 
 	// .................................................
