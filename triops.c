@@ -75,7 +75,10 @@ int getch(void);
 
 
 
-#define BUFFERSIZE 16384
+#define TRIOPS_VERSION "7.2.1"
+#define PROGRAM_NAME "triops"
+
+#define BUFFERSIZE 16384 // for CHACHA20: multiple of 64 bytes to avoid bad implementation (http://goo.gl/DHCLz1)
 #define KEYSIZE_v3 32 	// KEYSIZE_v3  is for CHACHA20 = 256 bits (256/8=32 bytes)
 #define IVSIZE_v3 8 	// IVSIZE_v3   is for CHACHA20 =  64 bits ( 64/8= 8 bytes)
 #define HASHSIZE_v3 64 	// HASHSIZE_v3 is for KECCAK-512=512 bits (512/8=64 bytes)
@@ -267,12 +270,18 @@ int local_triops (int argc, char* argv[])
 	// between 2 and 5 parameters:
 	if ( argc < 3 || argc > 6 ) // #1 is the program name
 	{
-		printf ("\nInvalid parameters. Command line must be:\n"
-			"\n triops <file with passphrase | "
-			"\n\t\t\t_passphrase rounded by '_' (__=>keyboard)_>"
-			"\n\t<file to decrypt> [path to decrypted file|=]"
-			"\n\t[*=encrypt .$#3] [*=don't store password hash (store IV+0x0's)]"
-			"\n\n");
+		printf ("\n%s v%s.  (goo.gl/lqT5eP) (wp.me/p2FmmK-7Q)\n"
+			"\n$ %s {file with passphrase (remove '\\n' !) |"
+			"\n\t\tbinary file to use as passphrase |"
+			"\n\t\t_passphrase_ rounded by '_' |"
+			"\n\t\t__ : read passphrase from keyboard}"
+			"\n\t{file to encrypt/decrypt}"
+			"\n\t{path to encrypted/decrypted file |"
+			"\n\t\t'=' or empty if there's no 4th param : overwrite file}"
+			"\n\t[3 (or any value): encrypt file (extension will be '.$#3') |"
+			"\n\t\tempty : decrypt file]"
+			"\n\t[1 (or any value): don't store password hint (be careful!)]"
+			"\n\n", PROGRAM_NAME, TRIOPS_VERSION, PROGRAM_NAME);
 		return 1;
 	}
 
@@ -828,7 +837,7 @@ obtainPassword (LPBYTE szFile, LPBYTE szPass)
 		if (triopsVersion == TRIOPS_V3) {
 			crypto_hash((unsigned char *)szPass, (unsigned char *)szPass, strlen(szPass));
 			/* DEBUG: check value:
-			printf ("calculated hash from file: ");
+			printf ("calculated hash from password: ");
 			for (i=0; i<16; i++) printf(" %08lx",((LPDWORD)szPass)[i]);
 			*/
 		}
