@@ -1,3 +1,7 @@
+v7.2.1
+
+* no fixes, improvements or additions: just little code compatibility changes with Android and others.
+
 v7.2
 
 * Binary files can be used as passwords: for example jpg images, etc. Caution: do not lose this 'password' file and do not modify it!

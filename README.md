@@ -2,7 +2,11 @@ triops: a simple command line tool for encryption/decryption of files.
 
 It uses [CHACHA20](http://en.wikipedia.org/wiki/Salsa20#ChaCha_variant) as algorithm for encryption/decryption and [KECCAK](http://en.wikipedia.org/wiki/SHA-3)-512 as hash algorithm.   
 
-Executables for v7.1 on some platforms (linux, Windows, HP-UX and Solaris) are available [here](https://circulosmeos.wordpress.com/2015/05/18/triops-a-multiplatform-cmdline-encryption-tool-using-chacha20-keccak).   
+Executables for some platforms (linux, Windows, HP-UX, Solaris and [Android](https://www.github.com/circulosmeos/triops.apk)) are available [here](https://circulosmeos.wordpress.com/2015/05/18/triops-a-multiplatform-cmdline-encryption-tool-using-chacha20-keccak).    
+
+Last version available and compiled is v7.2. Check [list of changes between versions](https://www.github.com/circulosmeos/triops/Changes.md).   
+
+There's an [Android app available here](https://www.github.com/circulosmeos/triops.apk).   
 
 Features:   
 
@@ -13,11 +17,11 @@ Features:
 * Mentioned hint used to check that the password for decryption is correct is *not* the same used to encrypt (obviously!). Separate hashes are used for both purposes, though both are derived via different ways from the password and IV, using some 500-1000 concatenated KECCAK hashes.
 * File modification time is maintained. File dates are important!
 * Encrypted files are appended the extension .$#3 to filename, so they can be recognized.
-* Password can be obtained from keyboard, command line or from a file. Caution: usually text files end with a "return" (line feed, \n, \r\n, \r) which will be used as the rest of chars in the file as part of the password. (Use $ cat > password + Ctrl+D to avoid this). Also note that there's a limit on the number of characters that will be read from the file... that'd be about two hundred chars at least (!).
+* Password can be obtained from keyboard, command line or from a file. Caution: usually text files end with a "return" (line feed, \n, \r\n, \r) which will be used as the rest of chars in the file as part of the password. (Use $ cat > password + Ctrl+D to avoid this). Also note that there's a limit on v7.1 on the number of characters that will be read from the file: 255 chars. This limit disappears on v7.2.
 * Binary files can be used as passwords (from v7.2): for example jpg images, etc. Caution: do not lose this 'password' file and do not modify it!
 * Speed is extremely high, as CHACHA20 is a very fast encryption algorithm: it is as fast as RC4.
 * Reduced program size: < 100 kiB on all platforms.
-* easily portable to Android as a JNI library. Check "ANDROID_LIBRARY" in the source code.
+* [easily portable to Android](https://www.github.com/circulosmeos/triops.apk) as a JNI library. Check "ANDROID_LIBRARY" in the source code.
 * Licensed as GPL v3.
 
 Known limitations:   

@@ -42,15 +42,14 @@
 
 #include "triops.h"
 
+#include <stdlib.h>
+#include <stdio.h>
 
 #ifdef ANDROID_LIBRARY
 #include <jni.h>
 //#include <android/log.h>
+//#define printf(...) __android_log_print(ANDROID_LOG_DEBUG, "TRIOPS", __VA_ARGS__);
 #endif
-
-#include <stdlib.h>
-#include <stdio.h>
-
 
 // stat() in FileSize() (and obtainTimestamp(), #ifndef WINDOWS_PLATFORM)
 #include <sys/types.h>
@@ -163,7 +162,8 @@ void	CreateUniqueKey_v3 (LPDWORD, LPBYTE, LPIV_v3);
 
 #ifdef ANDROID_LIBRARY
 
-int local_triops(int argc, char* argv[]);
+//int local_triops(int argc, char* argv[]);
+int local_triops(int argc, char* const argv[static 4]);
 
 
 
@@ -193,7 +193,7 @@ jint Java_com_example_triops_MainActivity_triops( JNIEnv*  env, jobject  thiz,  
         size_t jslen = strlen(pjc);
         argv[i] = (char*)malloc(jslen+1); //Extra char for the terminating null
         strcpy(argv[i], pjc); //Copy to *our* buffer. We could omit that, but IMHO this is cleaner. Also, const correctness.
-        (*env)->ReleaseStringUTFChars( env, js, pjc );
+        //(*env)->ReleaseStringUTFChars( env, js, pjc );	// IT'S MORE STABLE *WITHOUT* THIS LINE (???!!!)
         //__android_log_print(ANDROID_LOG_DEBUG, "TRIOPS", "%s", argv[i]);
     }
 
@@ -202,12 +202,12 @@ jint Java_com_example_triops_MainActivity_triops( JNIEnv*  env, jobject  thiz,  
     //__android_log_print(ANDROID_LOG_DEBUG, "TRIOPS", "%d", result);
 
     //Now free the array
-    //if (argv != NULL) {
-	//	for(i=0;i<argc;i++) {
-	//		free(argv[i]);
-	//	}
-	//	free(argv);
-    //}
+    /* if (argv != NULL) {
+		for(i=0;i<argc;i++) {
+			free(argv[i]);
+		}
+		free(argv);
+    }*/ // this code just raised a segfault ALWAYS (???!!!)
 
     return result;
 }
@@ -228,7 +228,8 @@ jint Java_com_example_triops_MainActivity_triops( JNIEnv*  env, jobject  thiz,  
 #ifndef ANDROID_LIBRARY
 int main (int argc, char* argv[])
 #else
-int local_triops (int argc, char* argv[])
+//int local_triops (int argc, char* argv[])
+int local_triops (int argc, char* const argv[static 4])
 #endif
 {
 	unsigned long long	nBytesSoFar;
@@ -333,6 +334,13 @@ int local_triops (int argc, char* argv[])
 	
 	// needed by createIV_v3
 	srand((unsigned) time(NULL)); 
+
+#ifdef ANDROID_LIBRARY
+	if (szFile[0] != '/') { // security measure
+		printf ("\nPath to file not valid: %s.\n\n", szFile);
+		return 1;
+	}
+#endif
 
 	// obtain password from file:
 	if (!obtainPassword (szPassFile, szPass))
@@ -825,13 +833,16 @@ obtainPassword (LPBYTE szFile, LPBYTE szPass)
 			}
 		} else {
 			// ! (strlen(szFile)==2)
-#endif
 			memcpy(szPass, szFile+1, strlen(szFile)-2); // done !!!
 			szPass[strlen(szFile)-2]=0x0; // important !!! to mark the end of the string
+		}
 
-		} // else ends ( if (strlen(szFile)==2) ) 
-		  // But:
-		  // #ifndef ANDROID_LIBRARY => if (szFile[0]=='_' && szFile[strlen(szFile)-1]=='_') {...}
+#else	// #ifndef ANDROID_LIBRARY
+		memcpy(szPass, szFile+1, strlen(szFile)-2); // done !!!
+		szPass[strlen(szFile)-2]=0x0; // important !!! to mark the end of the string
+
+#endif	// #ifndef/#else ANDROID_LIBRARY
+		
 
 		// and now, directly calculate hash here:
 		if (triopsVersion == TRIOPS_V3) {
@@ -843,7 +854,6 @@ obtainPassword (LPBYTE szFile, LPBYTE szPass)
 		}
 
 
-#ifndef ANDROID_LIBRARY
 	} else {
 	// ! (szFile[0]=='_' && szFile[strlen(szFile)-1]=='_') 
 
@@ -909,8 +919,6 @@ obtainPassword (LPBYTE szFile, LPBYTE szPass)
 		fclose (hFile);
 
 	} // else ends ( if (szFile[0]=='_' && szFile[strlen(szFile)-1]=='_') )
-
-#endif
 
 	return TRUE;
 
@@ -1107,7 +1115,7 @@ CheckKeyIsValid_v3 (LPSTR szPass, LPBYTE lpKey, LPBYTE lpIV, LPDWORD lpHashedKey
 
 	// .................................................
 	// "chain" password and IV to obtain the hash
-	// use to compare with the one stored in the encrypted file:
+	// used to compare with the one stored in the encrypted file:
 	memcpy((LPBYTE)szTemp, testKey.keyB, HASHSIZE_v3);
 
 	// some hashes more
