@@ -4,7 +4,7 @@ It uses [CHACHA20](http://en.wikipedia.org/wiki/Salsa20#ChaCha_variant) as algor
 
 Executables for some platforms (linux, Windows, HP-UX, Solaris and [Android](https://www.github.com/circulosmeos/triops.apk)) are available [here](https://circulosmeos.wordpress.com/2015/05/18/triops-a-multiplatform-cmdline-encryption-tool-using-chacha20-keccak).    
 
-Last version available and compiled is v7.2. Check [list of changes between versions](https://www.github.com/circulosmeos/triops/Changes.md).   
+Last version available and compiled is v7.2. Check [list of changes between versions](Changes.md).   
 
 There's an [Android app available here](https://www.github.com/circulosmeos/triops.apk).   
 
