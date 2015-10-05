@@ -44,6 +44,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 
 #ifdef ANDROID_LIBRARY
 #include <jni.h>
@@ -74,7 +75,7 @@ int getch(void);
 
 
 
-#define TRIOPS_VERSION "7.2.1"
+#define TRIOPS_VERSION "7.2.2"
 #define PROGRAM_NAME "triops"
 
 #define BUFFERSIZE 16384 // for CHACHA20: multiple of 64 bytes to avoid bad implementation (http://goo.gl/DHCLz1)
@@ -142,10 +143,10 @@ union unionIV_v3
 
 
 
-void	truncateFile (LPBYTE);
-BOOL    obtainPassword (LPBYTE, LPBYTE);
+void	truncateFile (char *);
+BOOL    obtainPassword (char *szPassFile, char *szPass);
 unsigned long long FileSize(char *);
-void 	EliminatePasswords (LPBYTE szPassFile, LPBYTE szPass);
+void 	EliminatePasswords (char *szPassFile, char *szPass);
 #ifndef WINDOWS_PLATFORM
 time_t 	obtainTimestampUnix (char *szFile, int iMarcaDeTiempo);
 #else
@@ -153,7 +154,7 @@ void 	obtainTimestampWin (char *szFile, LPFILETIME lpLastWriteTime);
 void 	writeTimestampWin (char *szFile, LPFILETIME lpLastWriteTime);
 #endif
 
-void	truncateFileBySize ( LPBYTE, unsigned long long );
+void	truncateFileBySize ( char *, unsigned long long );
 
 void 	LoadIVandHash_v3 (FILE *, LPBYTE, LPBYTE, char *);
 int 	CheckKeyIsValid_v3 (LPSTR, LPBYTE, LPBYTE, LPDWORD, BOOL);
@@ -233,7 +234,7 @@ int local_triops (int argc, char* const argv[static 4])
 #endif
 {
 	unsigned long long	nBytesSoFar;
-	unsigned long long	nBytesRead, nBytesWritten;
+	unsigned long long	nBytesRead;
 	FILE *      hFile;
 	FILE *      hFileOut;
 	FILE *      hFileTail;
@@ -317,13 +318,14 @@ int local_triops (int argc, char* const argv[static 4])
 		} 
 	} else {
 		// decrypting: so triops Version can be deduced from extension:
-		if (strlen(szFile)>=4)
+		if (strlen(szFile)>=4) {
 					if (strcmp( szFile+(strlen(szFile)-4), TRIOPS_V3_EXTENSION ) == 0 )
 						triopsVersion=TRIOPS_V3;
 					else {
 						printf ("\nDecrypting, but format could not be deduced from file extension.\nProcess aborted.\n");
 						return 1;
 					}
+		}
 	}
 	//.................................................
 	// (5)
@@ -444,7 +446,7 @@ int local_triops (int argc, char* const argv[static 4])
 		}
 	}
 
-	// use the iv to create a unique key for this file
+	// use the IV to create a unique key for this file
 	if (triopsVersion==TRIOPS_V3) {
 		CreateUniqueKey_v3 (uniqueKey_v3.keyW, key_v3.keyB, &(iv_v3.iv));
 		// it is not necessary to make a copy of the original IV, as CHACHA20 uses it as const *
@@ -654,7 +656,7 @@ int local_triops (int argc, char* const argv[static 4])
 		} else {
 			// the space destined to the hash is filled with all zeros value:
 			if (triopsVersion==TRIOPS_V3)
-				for (i=0; i++; i<HASHSIZE_v3) { matrix3[i]=0x0; }
+				for (i=0; i < HASHSIZE_v3; i++) { matrix3[i]=0x0; }
 		}
 		if (triopsVersion==TRIOPS_V3)
 			fwrite(matrix3, HASHSIZE_v3, 1, hFileTail );
@@ -728,7 +730,7 @@ unsigned long long FileSize( char *szFile )
 // truncates the size of the file, deleting the encrypted file's data tail 
 // (or its equivalent size, which is the same).
 void 
-truncateFile ( LPBYTE szFile )
+truncateFile ( char *szFile )
 {
 	long int bytesToTruncate;
 	if (triopsVersion==TRIOPS_V3)
@@ -740,7 +742,7 @@ truncateFile ( LPBYTE szFile )
 // truncates the size of the file, deleting bytesToTruncate bytes from the encrypted file's tail 
 // (or its equivalent size, which is the same).
 void 
-truncateFileBySize ( LPBYTE szFile, unsigned long long bytesToTruncate )
+truncateFileBySize ( char *szFile, unsigned long long bytesToTruncate )
 {
 	// this check is needed because the file to truncate can be smaller !
 	if ( FileSize(szFile) < bytesToTruncate ) {
@@ -765,6 +767,7 @@ truncateFileBySize ( LPBYTE szFile, unsigned long long bytesToTruncate )
 		}
         if (chsize(iFile, filelength(iFile) - bytesToTruncate )) {
             printf ("Error while modifying file. Hope nothing changed, but can't assure that.\n");
+            close (iFile);
             exit (-3);
         }
         close (iFile);
@@ -780,10 +783,10 @@ truncateFileBySize ( LPBYTE szFile, unsigned long long bytesToTruncate )
 // if the fs path passed starts and ends with '_' char, 
 // the enclosed string is the password itself.
 BOOL
-obtainPassword (LPBYTE szFile, LPBYTE szPass)
+obtainPassword (char *szFile, char *szPass)
 {
 	FILE *      hFile;
-	DWORD       nBytesRead;
+	unsigned long long 	  nBytesRead;
 	BYTE		lpFileBuffer [BUFFERSIZE];
 	int 		i, c;
 	unsigned long long 	  lFileSize;
@@ -892,7 +895,7 @@ obtainPassword (LPBYTE szFile, LPBYTE szPass)
 		{
 			lBlockNumber++;
 			// size_t fread(void *ptr, size_t size, size_t n, FILE *stream);
-			nBytesRead=fread(lpFileBuffer, BUFFERSIZE, 1, hFile);
+			nBytesRead=(unsigned long long)fread(lpFileBuffer, BUFFERSIZE, 1, hFile);
 			if (nBytesRead || feof(hFile) )
 			{
 				if (feof(hFile)) {
@@ -902,7 +905,7 @@ obtainPassword (LPBYTE szFile, LPBYTE szPass)
 					nBytesRead = nBytesRead * (unsigned long long)BUFFERSIZE;
 				}
 				if (triopsVersion==TRIOPS_V3) {
-					sph_keccak512(&mc, lpFileBuffer, nBytesRead);
+					sph_keccak512(&mc, lpFileBuffer, (size_t)nBytesRead);
 				}
 
 			}
@@ -927,15 +930,15 @@ obtainPassword (LPBYTE szFile, LPBYTE szPass)
 
 // password is not needed anymore: variables are filled not to reside in memory,
 // as a paranoic security measure:
-void EliminatePasswords(LPBYTE szPassFile, LPBYTE szPass)
+void EliminatePasswords(char *szPassFile, char *szPass)
 {
 	int i;
 
 	// both variables are filled: szPassFile isn't needed anymore anyway.
-	for (i=0; i++; i<MAX_PATH) {
+	for (i=0; i < MAX_PATH; i++) {
 		szPassFile[i]=0xff;
 	}
-	for (i=0; i++; i<MAX_PASSWORD_LENGTH) {
+	for (i=0; i < MAX_PASSWORD_LENGTH; i++) {
 		szPass[i]=0xff;
 	}
 
@@ -1006,7 +1009,7 @@ void writeTimestampWin(char *szFile, LPFILETIME lpLastWriteTime)
 				   NULL);				   // no attr. template
 	if (hFile == INVALID_HANDLE_VALUE) {
 		printf("warning: can't write attributtes for file '%s' (error: %d)\n",
-			szFile, GetLastError());
+			szFile, (int)GetLastError());
 	} else {
 		if ( SetFileTime(
 				hFile,	// identifies the file
@@ -1120,13 +1123,13 @@ CheckKeyIsValid_v3 (LPSTR szPass, LPBYTE lpKey, LPBYTE lpIV, LPDWORD lpHashedKey
 
 	// some hashes more
 	for (i=0; i<500; i++) {
-		crypto_hash(szTemp, szTemp, HASHSIZE_v3);
+		crypto_hash((unsigned char *)szTemp, (unsigned char *)szTemp, HASHSIZE_v3);
 	}
 
 	memcpy((LPBYTE)(szTemp+HASHSIZE_v3), lpIV, IVSIZE_v3);
 
 	// hash again in hashedKey:
-	crypto_hash(testKey.keyB, szTemp, HASHSIZE_v3 + IVSIZE_v3);
+	crypto_hash(testKey.keyB, (unsigned char *)szTemp, HASHSIZE_v3 + IVSIZE_v3);
 	// .................................................
 
 	// now verify against the stored hashed key
@@ -1193,7 +1196,7 @@ createIV_v3 ( LPIV_v3 iv, char *szFile )
 	crypto_hash(cTempHash, (unsigned char *)iv, IVSIZE_v3);
 
 	// as KECCAK-512 produces 512 bits, let's get just some bytes:
-	for (i=0;i++;i<8) {
+	for (i=0; i < 8; i++) {
 		((unsigned char*)iv)[i] = cTempHash[i*4];
 	}
 

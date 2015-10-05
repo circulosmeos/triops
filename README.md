@@ -10,7 +10,7 @@ There's an [Android app available here](https://www.github.com/circulosmeos/trio
 
 Features:   
 
-* Code can be compiled with any C99 compiler, no matter platform, endianness or word size (32-64 bits): it has been tested on Windows, linux, Solaris, HP-UX OS's and Intel/AMD, ARM and Itanium processors.
+* Code can be compiled with any C99 compiler, no matter platform, endianness or word size (32-64 bits): it has been tested on Windows, linux, Solaris, HP-UX OS's and Intel/AMD, ARM, MIPS and Itanium processors.
 * Same content produces different encrypted outputs every time. This is attained with a random initialization vector (IV) stored within the encrypted file.
 * Files are (by default) encrypted/decrypted on-the-fly, so content is overwritten. This is interesting from a security point of view, as no clear content is left on disk.
 * When decrypting, if password is not the one used for encrypting, the process is aborted, so the file cannot be rendered unusable. This behaviour is achieved thanks to a password hint stored within the encrypted file. (This hint can optionally be not stored: in this case the file could end up being decrypted with an incorrect password, so its contents would be irrecoverable.)
@@ -23,12 +23,11 @@ Features:
 * Reduced program size: < 100 kiB on all platforms.
 * [easily portable to Android](https://www.github.com/circulosmeos/triops.apk) as a JNI library. Check "ANDROID_LIBRARY" in the source code.
 * Licensed as GPL v3.
-
+   
 Known limitations:   
+   
+* Files higher than 4 GiB cannot be managed and will produce unexpected outputs in Windows: be warned!   
 
-* Files higher than 4 GiB cannot be managed and will produce unexpected outputs: be warned!   
-   
-   
    
 Before compiling, check in triops.h that next values correctly adjust to your platform, modifying them as convenient:   
 

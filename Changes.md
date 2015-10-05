@@ -1,3 +1,8 @@
+v7.2.2
+
+* patches: password was not correctly overwritten in memory after it wasn't needed. IVs weren't as random as intended. Both failures didn't compromise security of the encrypted file, AFAIK.
+* code cleaning to eliminate most of the compiler warnings.
+
 v7.2.1
 
 * no fixes, improvements or additions: just little code compatibility changes with Android and others.
