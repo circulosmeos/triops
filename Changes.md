@@ -1,3 +1,9 @@
+v7.3
+
+* Large file support (LFS): no limit on the size of the files read/written (up to 8 EiB = 2^63 bytes, or the max filesystem file size).
+* patch: files to read/write are tested after password check and before any other operation, so no empty or overwritten file is created.
+* patch: (since v7.2) no valid password files resulted in abnormal program termination (nothing were overwritten, though).
+
 v7.2.2
 
 * patches: password was not correctly overwritten in memory after it wasn't needed. IVs weren't as random as intended. Both failures didn't compromise security of the encrypted file, AFAIK.

@@ -75,7 +75,7 @@ int getch(void);
 
 
 
-#define TRIOPS_VERSION "7.2.2"
+#define TRIOPS_VERSION "7.3"
 #define PROGRAM_NAME "triops"
 
 #define BUFFERSIZE 16384 // for CHACHA20: multiple of 64 bytes to avoid bad implementation (http://goo.gl/DHCLz1)
@@ -344,13 +344,6 @@ int local_triops (int argc, char* const argv[static 4])
 	}
 #endif
 
-	// obtain password from file:
-	if (!obtainPassword (szPassFile, szPass))
-	{
-		printf ("\nCould not obtain password.\nAborted.\n\n");
-		return 1;
-	}
-
 	// if output is to the same file, modification timestamp is preserved
 	if (bOutputToTheSameFile) {
 #ifndef WINDOWS_PLATFORM
@@ -372,6 +365,71 @@ int local_triops (int argc, char* const argv[static 4])
 		printf ("\nError opening %s\n\n", szFile);
 		return 1;
 	}
+
+
+	// encrypting:
+	// Add encrypted file extension to file's name if we're written to another file.
+	// If we're written to the same file, this process is made at the end.
+	if (bEncrypt && !bOutputToTheSameFile) {
+		szNewFile[strlen(szNewFile)+4]=0x0; // the end of string after the extension addition
+		if (triopsVersion==TRIOPS_V3)
+			memcpy(szNewFile+strlen(szNewFile), TRIOPS_V3_EXTENSION, 4);
+	}
+
+	// encrypting/decrypting to a new file:
+	// check that destination file does not exist yet (do not overwrite in that case):
+	if (!bOutputToTheSameFile) {
+		hFileOut = fopen(szNewFile, "rb" );
+		if (hFileOut != NULL)
+		{
+			printf ("\nError: Destination file already exists: %s\n"
+				"\tProcess aborted (nothing has been done).\n\n", szNewFile);
+			fclose(hFileOut);
+			return 1;
+		}
+		// once checked that destination file doesn't exist, open said destination file:
+		// moved AFTER password has been checked, not to create a superfluous empty file.
+		/*hFileOut = fopen(szNewFile, "wb" );
+		if (hFileOut == NULL)
+		{
+			printf ("\nError opening %s\n\n", szNewFile);
+			return 1;
+		}*/
+	}
+	else 
+	{
+		// encrypting/decrypting to the "same" file: 
+		// check that destination file does not exist yet (do not overwrite in that case):
+		char szDestinationFile [MAX_PATH];
+		strcpy(szDestinationFile, szFile);
+		if (!bEncrypt) { 
+			// !bEncrypt && bOutputToTheSameFile
+			szDestinationFile[strlen(szDestinationFile)-4]=0x0;
+		} else {
+			//  bEncrypt && bOutputToTheSameFile
+			if (triopsVersion==TRIOPS_V3)
+				memcpy(szDestinationFile+strlen(szDestinationFile), TRIOPS_V3_EXTENSION, 4);			
+			szDestinationFile[strlen(szDestinationFile)+4]=0x0;
+		}
+		// check that destination file does not exist yet (do not overwrite in that case):
+		hFileOut = fopen(szDestinationFile, "rb" );
+		if (hFileOut != NULL)
+		{
+			printf ( "\nError: Destination file exists: %s\n"
+				"\tProcess aborted (nothing has been done).\n\n", szDestinationFile );
+			fclose(hFileOut);
+			return 1;
+		}
+	}
+
+
+	// obtain password from file:
+	if (!obtainPassword (szPassFile, szPass))
+	{
+		printf ("\nCould not obtain password.\nProcess aborted.\n\n");
+		return 1;
+	}
+
 
 	if (!bEncrypt) {
 		if (triopsVersion==TRIOPS_V3) 
@@ -406,6 +464,17 @@ int local_triops (int argc, char* const argv[static 4])
 	// password isn't needed anymore: overwrite variables as a paranoic security measure:
 	EliminatePasswords(szPassFile, szPass);
 
+	// AFTER password has been checked, (not to create a superfluous empty file), and 
+	// once checked that destination file doesn't exist (upper code), open said destination file:
+	if (!bOutputToTheSameFile) {
+		hFileOut = fopen(szNewFile, "wb" );
+		if (hFileOut == NULL)
+		{
+			printf ("\nError opening %s\n\n", szNewFile);
+			return 1;
+		}
+	}
+
 	// if process arrives here, the password has been checked as correct and 
 	// it's gonna decrypt, so hash can be erased from tail now.
 	if (!bEncrypt && bOutputToTheSameFile) {
@@ -420,31 +489,6 @@ int local_triops (int argc, char* const argv[static 4])
 		}
 	}
 
-	// Add encrypted file extension to file's name if we're written to another file.
-	// If we're written to the same file, this process is made at the end.
-	if (bEncrypt && !bOutputToTheSameFile) {
-		szNewFile[strlen(szNewFile)+4]=0x0; // the end of string after the extension addition
-		if (triopsVersion==TRIOPS_V3)
-			memcpy(szNewFile+strlen(szNewFile), TRIOPS_V3_EXTENSION, 4);
-	}
-
-	// check that destination file does not exist yet (do not overwrite in that case):
-	if (!bOutputToTheSameFile) {
-		hFileOut = fopen(szNewFile, "rb" );
-		if (hFileOut != NULL)
-		{
-			printf ("\nError: Destination file already exists: %s\n\n", szNewFile);
-			fclose(hFileOut);
-			return 1;
-		}
-		// once checked that destination file doesn't exist, open said destination file:
-		hFileOut = fopen(szNewFile, "wb" );
-		if (hFileOut == NULL)
-		{
-			printf ("\nError opening %s\n\n", szNewFile);
-			return 1;
-		}
-	}
 
 	// use the IV to create a unique key for this file
 	if (triopsVersion==TRIOPS_V3) {
@@ -454,6 +498,7 @@ int local_triops (int argc, char* const argv[static 4])
 		/*printf ("\ncalculated key: ");
 		for (i=0; i<KEYSIZE_v3/4; i++) printf(" %08lx",uniqueKey_v3.keyW[i]);*/
 	}
+
 
 	// .................................................
 	// do CHACHA20 setup:
@@ -499,6 +544,7 @@ int local_triops (int argc, char* const argv[static 4])
 	} else {
 		bProgressBar=FALSE;
 	}
+
 	// do a cycle reading BUFFERSIZE blocks until all of them have been read:
 	lBlockNumber=0;
 	lBlockTotal=lFileSize/(unsigned long long)BUFFERSIZE; // this truncates result so:
@@ -534,9 +580,9 @@ int local_triops (int argc, char* const argv[static 4])
 		// input cannot be directly followed by output without an intervening
 		// fseek, rewind, or an input that encounters  end-of-file."
 		if (bOutputToTheSameFile) {
-			if (fseek(hFile, nBytesSoFar, SEEK_SET)!=0) {
+			if (FSEEK(hFile, nBytesSoFar, SEEK_SET)!=0) {
 				printf ("\nerror: couldn't move correctly inside '%s'\n"
-				"\tprocess aborted.\n", szFile);
+				"\tProcess aborted.\n", szFile);
 			}
 		}
 
@@ -620,9 +666,9 @@ int local_triops (int argc, char* const argv[static 4])
 			}
 			// reset the file pointer for the write
 			if (bOutputToTheSameFile) {
-				if (fseek(hFile, nBytesSoFar, SEEK_SET)!=0) {
+				if (FSEEK(hFile, nBytesSoFar, SEEK_SET)!=0) {
 					printf ("\nerror: couldn't move correctly inside '%s'\n"
-					"\tprocess aborted.\n", szFile);
+					"\tProcess aborted.\n", szFile);
 				}
 			}
 			// write the buffer
@@ -717,13 +763,18 @@ int local_triops (int argc, char* const argv[static 4])
 // returns the size of the file in bytes
 unsigned long long FileSize( char *szFile )
 {
+#ifdef WINDOWS_PLATFORM
+  // large file support in Windows
+  struct _stati64 fileStat;
+  int err = _stati64( szFile, &fileStat );
+#else
   struct stat fileStat;
   int err = stat( szFile, &fileStat );
+#endif  
   if (0 != err) {
 	printf ("Error while reading file. Nothing changed.\n");
     exit (-3);
   }
-  //return (long int) fileStat.st_size;
   return (unsigned long long) fileStat.st_size;
 }
 
@@ -761,11 +812,11 @@ truncateFileBySize ( char *szFile, unsigned long long bytesToTruncate )
 #else
     {
         int iFile;
-		if ((iFile=open(szFile,O_WRONLY))==0) {
+		if ((iFile=_open(szFile,_O_WRONLY))==0) {
             printf ("\nError opening %s\n", szFile);
             exit (-1);
 		}
-        if (chsize(iFile, filelength(iFile) - bytesToTruncate )) {
+        if (_chsize_s(iFile, FileSize(szFile) - bytesToTruncate )) {
             printf ("Error while modifying file. Hope nothing changed, but can't assure that.\n");
             close (iFile);
             exit (-3);
@@ -863,7 +914,6 @@ obtainPassword (char *szFile, char *szPass)
 		hFile = fopen(szFile, "rb" );
 		if (hFile == NULL)
 		{
-			fclose (hFile);
 			printf ("\nError opening '%s'\n", szFile);
 			return FALSE;
 		}
@@ -1050,7 +1100,7 @@ LoadIVandHash_v3 (FILE *hFile, LPBYTE ivAsBytes, LPBYTE hashedKey, char *szFile)
 	}
 
 	// set the pointer to the beginning of the iv
-	fseek(hFile, 0-(IVSIZE_v3+HASHSIZE_v3), SEEK_END);
+	FSEEK(hFile, ZERO_LL-(IVSIZE_v3+HASHSIZE_v3), SEEK_END);
 
 	// read the iv
 	nBytesRead = fread(ivAsBytes, IVSIZE_v3, 1, hFile);
@@ -1068,7 +1118,7 @@ LoadIVandHash_v3 (FILE *hFile, LPBYTE ivAsBytes, LPBYTE hashedKey, char *szFile)
 
 
 	// reset file pointer to the beginning of the file
-	fseek(hFile, 0, SEEK_SET);
+	FSEEK(hFile, ZERO_LL, SEEK_SET);
 
 	return;
 
@@ -1178,6 +1228,8 @@ createIV_v3 ( LPIV_v3 iv, char *szFile )
 {
 	struct stat fileStat;
 	unsigned char cTempHash[HASHSIZE_v3];
+	unsigned char cTempData[8+IVSIZE_v3];
+	unsigned long long lFileSize;
 	int i;
 
 	// already done !
@@ -1188,17 +1240,32 @@ createIV_v3 ( LPIV_v3 iv, char *szFile )
 		printf ("Error while reading file. Nothing changed.\n");
 		exit (-3);
 	}
-	iv->rand1=rand()*rand(); iv->rand1=rand()*rand();
+	lFileSize=FileSize( szFile );
+	iv->rand1=rand()*rand();
+	/*printf("\n = %02lx",iv->rand1);*/
 	iv->fileTime=fileStat.st_atime;
+	/*printf("\n = %02lx",iv->fileTime);*/
+
+	memcpy( cTempData, 		(unsigned char *)&lFileSize, 8 );
+	memcpy( cTempData+8, 	(unsigned char *)&(iv->rand1), 4 );
+	memcpy( cTempData+8+4, 	(unsigned char *)&(iv->fileTime), 4 );
+	/*
+	printf ("\niv: ");
+	for (i=0; i<16; i++) printf(" %02lx",cTempData[i]);
+	*/
 
 	// ok, now let's hash iv in order to obscure IV:
 	// hash from iv, in cTempHash:
-	crypto_hash(cTempHash, (unsigned char *)iv, IVSIZE_v3);
+	crypto_hash(cTempHash, cTempData, 8+4+4);
 
 	// as KECCAK-512 produces 512 bits, let's get just some bytes:
 	for (i=0; i < 8; i++) {
 		((unsigned char*)iv)[i] = cTempHash[i*4];
 	}
+	/*
+	printf ("\niv: ");
+	for (i=0; i<2; i++) printf(" %02lx",((uint32_t*)iv)[i]);
+	*/
 
 	// test IV:
 	//+++++++++++++++++++++++++++++++++++++++++++

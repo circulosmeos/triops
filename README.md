@@ -19,15 +19,12 @@ Features:
 * Encrypted files are appended the extension .$#3 to filename, so they can be recognized.
 * Password can be obtained from keyboard, command line or from a file. Caution: usually text files end with a "return" (line feed, \n, \r\n, \r) which will be used as the rest of chars in the file as part of the password. (Use $ cat > password + Ctrl+D to avoid this). Also note that there's a limit on v7.1 on the number of characters that will be read from the file: 255 chars. This limit disappears on v7.2.
 * Binary files can be used as passwords (from v7.2): for example jpg images, etc. Caution: do not lose this 'password' file and do not modify it!
+* From v7.3, there's no limit on the size on files read/written (up to 8 EiB = 2^63 bytes, or the max filesystem file size).
 * Speed is extremely high, as CHACHA20 is a very fast encryption algorithm: it is as fast as RC4.
 * Reduced program size: < 100 kiB on all platforms.
 * [easily portable to Android](https://www.github.com/circulosmeos/triops.apk) as a JNI library. Check "ANDROID_LIBRARY" in the source code.
 * Licensed as GPL v3.
    
-Known limitations:   
-   
-* Files higher than 4 GiB cannot be managed and will produce unexpected outputs in Windows: be warned!   
-
    
 Before compiling, check in triops.h that next values correctly adjust to your platform, modifying them as convenient:   
 
