@@ -45,8 +45,12 @@
 #endif
 #include <string.h>
 #include <fcntl.h>  // open, etc.
-#ifndef WINDOWS_PLATFORM
-#include <unistd.h> // truncate
+
+#include <unistd.h> // getopt()
+#include <ctype.h>  // isprint()
+
+#ifndef __sun
+#include <getopt.h> // getopt() compatible with -std=c99
 #endif
 
 

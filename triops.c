@@ -17,10 +17,10 @@
 // *	Files can be used as passwords: for example jpg images, etc.
 //		(do not lose this 'password' file and do not modify it!)
 // 
-// Type ./triops to obtain command line help.
+// Type './triops -h' to obtain command-line help.
 //
 // Pure C99 code,
-// by circulosmeos, May 2015. June 2015.
+// by circulosmeos, May 2015. June 2015. July 2016.
 // http://circulosmeos.wordpress.com
 // Licensed under GPL v3:
 //
@@ -75,7 +75,7 @@ int getch(void);
 
 
 
-#define TRIOPS_VERSION "7.3"
+#define TRIOPS_VERSION "8.0"
 #define PROGRAM_NAME "triops"
 
 #define BUFFERSIZE 16384 // for CHACHA20: multiple of 64 bytes to avoid bad implementation (http://goo.gl/DHCLz1)
@@ -97,8 +97,6 @@ typedef enum {	obtainTimestamp_ST_ATIME=0, // Most recent access (Windows) (or l
 				obtainTimestamp_ST_CTIME=2  // Creation time (NTFS) or most recent change of state (POSIX)
 				} obtainTimestamp_Constants;
 #endif
-
-BOOL bOutputToTheSameFile;
 
 typedef enum {	
 				TRIOPS_V3=3
@@ -143,10 +141,14 @@ union unionIV_v3
 
 
 
+void print_help();
+int process_file( char *szFile, char *szNewFile, char *szPass, BOOL bEncrypt, 
+			BOOL bExplicitPassword, BOOL bOutputToTheSameFile, BOOL bDoNotStorePasswordHash );
 void	truncateFile (char *);
-BOOL    obtainPassword (char *szPassFile, char *szPass);
+BOOL	obtainPasswordFromKeyboard (char *szPass);
+BOOL	obtainPassword (char *szFile, char *szPass, BOOL bExplicitPassword);
 unsigned long long FileSize(char *);
-void 	EliminatePasswords (char *szPassFile, char *szPass);
+void 	EliminatePassword (char *szVariable, int LENGTH);
 #ifndef WINDOWS_PLATFORM
 time_t 	obtainTimestampUnix (char *szFile, int iMarcaDeTiempo);
 #else
@@ -233,19 +235,226 @@ int main (int argc, char* argv[])
 int local_triops (int argc, char* const argv[static 4])
 #endif
 {
+	BOOL 		bOutputToTheSameFile;
+	char		szPassFile 	[MAX_PATH];
+	BOOL		bEncrypt;
+	BOOL		bExplicitPassword;
+	BOOL		bDoNotStorePasswordHash;
+	BOOL 		bObligatoryKey;
+	BOOL 		bBreakOnFirstError;
+	char		szFile 		[MAX_PATH];
+	char		szNewFile 	[MAX_PATH];
+	char		szPass [MAX_PASSWORD_LENGTH];
+	BOOL		bPass = FALSE;
+	char		szPassv3	[MAX_PASSWORD_LENGTH];
+	BOOL		bPassv3 = FALSE;
+	int 		output;
+	int 		i;
+
+    // default options:
+    bOutputToTheSameFile=TRUE;		// defined as global above
+	szFile[0]=0x0;
+	szNewFile[0]=0x0;
+    szPassFile[0]=0x0;
+    bEncrypt=FALSE;
+    bExplicitPassword=FALSE;
+    bDoNotStorePasswordHash=FALSE;
+    bObligatoryKey=FALSE; 			// it is necessary to indicate a key
+    bBreakOnFirstError=FALSE;
+	triopsVersion=TRIOPS_V3;
+
+    int opt = 0;
+    // options: 
+    //  * key: from keyboard (k), from cmdline (p), from file (P)
+    //  * output file (o) [optional if decrypting and input is not stdin]
+    //  * encryption (and method chosen) (e) [decryption, if not present]
+    //  * decryption [optional, as it is the defaut action] (d)
+    //  * store (1; or not: 0) the hash to verify the encryted file (H)
+    //  * file(s) to encrypt/decrypt
+    while ((opt = getopt(argc, argv, "hkp:P:o:e:dHb")) != -1)
+        switch(opt) {
+            // help
+            case 'h':
+                print_help();
+                return 1;
+            case 'k':
+                bObligatoryKey=TRUE;
+                break;
+            case 'p':
+                bObligatoryKey=TRUE;
+                bExplicitPassword=TRUE;
+                strcpy (szPassFile, optarg);
+                break;
+            case 'P':
+                bObligatoryKey=TRUE;
+                strcpy (szPassFile, optarg);
+                break;
+            case 'o':
+                bOutputToTheSameFile=FALSE;
+                strcpy (szNewFile, optarg);
+                break;
+            case 'e':
+                bEncrypt=TRUE;
+                if (strcmp(optarg, "3")!=0) {
+                    printf ("Only '-e 3' is actually accepted ('%s' found)\n", optarg);
+                    return 1;
+                }
+                break;
+            case 'd':
+                bEncrypt=FALSE;
+                break;
+            case 'H':
+                bDoNotStorePasswordHash=TRUE;
+                break;
+            case 'b':
+            	bBreakOnFirstError=TRUE;
+            	break;
+            case '?':
+                if (isprint (optopt))
+                    printf ("Unknown option `-%c'.\n", optopt);
+                else
+                    printf ("Unknown option character `\\x%x'.\n", optopt);
+                //break;
+                printf("Command aborted\n");
+                return 1;
+            default:
+                abort();
+        }
+
+    if (bObligatoryKey==FALSE) {
+        printf("ERROR: Key absent: it is obligatory to indicate a key for encryption/decryption.\n");
+        return 1;
+    }
+
+    // obtain password from keyboard:
+    if (bExplicitPassword==FALSE && 
+    	strlen(szPassFile)==0) {
+    	if (!obtainPasswordFromKeyboard(szPassFile)){
+    		printf("ERROR: could not obtain password from keyboard.\nProcess aborted.\n");
+    		return 1;
+    	}
+    	bExplicitPassword=TRUE;
+    }
+    // from now on only options are file to be hashed or explicit password from comdline
+
+
+	// needed by createIV_v3
+	srand((unsigned) time(NULL)); 
+
+
+	// note: 
+	// set output value and break to let the return be done later, 
+	// because an EliminatePassword() call is convenient before exit.
+    if (optind == argc) {
+        // if no additional arguments are present
+        // file input has not been indicated: error!
+        printf("ERROR: no file input(s) has been indicated.\n");
+        output = 1;
+    } else {
+        // If multiple file inputs are indicated, no single output file can be present
+        // as output will be the overwriting of each one of them.
+        if (bOutputToTheSameFile==FALSE && (optind+1)<argc) {
+            printf("ERROR: When multiple input files are indicating they'll be overwritten\n\tso a single output file is invalid.\n");
+            output = 1;
+        } else {
+	        for (i = optind; i < argc; i++) {
+	        	if ( strlen(argv[i]) < (MAX_PATH-4) ) {
+	        		strcpy (szFile, argv[i]);
+
+				    // decrypting: so triops Version can be deduced from extension:
+				    if (bEncrypt==FALSE) {
+				                if (strcmp( szFile+(strlen(szFile)-4), TRIOPS_V3_EXTENSION ) == 0 )
+				                    triopsVersion=TRIOPS_V3;
+				                else {
+				                    printf ("\nFile not processed:\nDecryption format could not be deduced from file extension: %s\n", szFile);
+				                    if (bBreakOnFirstError==TRUE) {
+					            		output=1;
+					            		break;
+						            } else
+				                    	continue;
+				                }
+				        if (triopsVersion == TRIOPS_V3) {
+				        	if (bPassv3 == FALSE && 
+				        		!obtainPassword (szPassFile, szPassv3, bExplicitPassword)) {
+								printf ("\nERROR: Could not obtain password.\nProcess aborted.\n\n");
+			                    if (bBreakOnFirstError==TRUE) {
+				            		output=1;
+				            		break;
+					            } else
+			                    	continue;
+							}
+							bPassv3=TRUE;
+							memcpy(szPass, szPassv3, MAX_PASSWORD_LENGTH);
+						}
+				    } else {
+				    	// encrypting:
+				    	// we need to obtainPassword() just once
+				    	if (bPass==FALSE &&
+				    		!obtainPassword (szPassFile, szPass, bExplicitPassword)) {
+								printf ("\nERROR: Could not obtain password.\nProcess aborted.\n\n");
+			                    if (bBreakOnFirstError==TRUE) {
+				            		output=1;
+				            		break;
+					            } else
+			                    	continue;
+						}
+						bPass=TRUE;
+						// password isn't needed anymore: overwrite variable as a paranoic security measure:							
+						EliminatePassword(szPassFile, MAX_PATH);
+				    }
+
+				    output=process_file( szFile, szNewFile, szPass, bEncrypt, 
+	            				bExplicitPassword, bOutputToTheSameFile, bDoNotStorePasswordHash );
+	            	
+	        	} else {
+	        		printf("\nFile not processed: path is too long for '%s'\n", argv[i]);
+                    if (bBreakOnFirstError==TRUE) {
+	            		output=1;
+	            		break;
+		            } else
+                    	continue;
+	        	}
+
+            	if (output!=0) { 
+            		if (bBreakOnFirstError==FALSE) {
+						// print warning, but continue processing next files:
+	            		printf("ERROR processing '%s'\n", szFile);
+	            		output=0;
+			        } else
+			        	break;
+			    }
+
+	        }
+	    }
+    }
+
+	// password hash isn't needed anymore: overwrite variable as a paranoic security measure:
+	EliminatePassword(szPass, MAX_PASSWORD_LENGTH);
+	EliminatePassword(szPassFile, MAX_PATH);
+	EliminatePassword(szPassv3, MAX_PASSWORD_LENGTH);
+
+	return output;
+
+}
+
+
+int 
+process_file( char *szFile, char *szNewFile, char *szPass, BOOL bEncrypt, 
+	BOOL bExplicitPassword, BOOL bOutputToTheSameFile, BOOL bDoNotStorePasswordHash ) 
+{
+
+	//char		szFile 		[MAX_PATH];		// defined as parameter
+	//char		szNewFile 	[MAX_PATH];		// defined as parameter 
+	//char		szPass [MAX_PASSWORD_LENGTH]; // defined as parameter
+	//BOOL		bEncrypt;				 	// defined as parameter
+	//BOOL		bDoNotStorePasswordHash;	// defined as parameter
+	//BOOL		bOutputToTheSameFile; 		// defined as parameter
 	unsigned long long	nBytesSoFar;
 	unsigned long long	nBytesRead;
 	FILE *      hFile;
 	FILE *      hFileOut;
 	FILE *      hFileTail;
-	char		szFile 		[MAX_PATH];
-	char		szNewFile 	[MAX_PATH];
-	char		szPass [MAX_PASSWORD_LENGTH];
-	char		szPassFile 	[MAX_PATH];
 	BYTE		lpFileBuffer[BUFFERSIZE];
-	//BOOL		bOutputToTheSameFile; 		// defined as global above
-	BOOL		bEncrypt;
-	BOOL		bDoNotStorePasswordHash;
 	int 		i;
 	unsigned long long	lFileSize;	// show progress bar
 	BOOL		bProgressBar;			// show progress bar
@@ -266,76 +475,6 @@ int local_triops (int argc, char* const argv[static 4])
 	BYTE 		matrix3[HASHSIZE_v3];	 	// temporary key v3 hash store
 	ECRYPT_ctx  chacha_ctx;					// CHACHA20
 
-	triopsVersion=TRIOPS_V3;
-
-	// check parameters
-	// between 2 and 5 parameters:
-	if ( argc < 3 || argc > 6 ) // #1 is the program name
-	{
-		printf ("\n%s v%s.  (goo.gl/lqT5eP) (wp.me/p2FmmK-7Q)\n"
-			"\n$ %s {file with passphrase (remove '\\n' !) |"
-			"\n\t\tbinary file to use as passphrase |"
-			"\n\t\t_passphrase_ rounded by '_' |"
-			"\n\t\t__ : read passphrase from keyboard}"
-			"\n\t{file to encrypt/decrypt}"
-			"\n\t{path to encrypted/decrypted file |"
-			"\n\t\t'=' or empty if there's no 4th param : overwrite file}"
-			"\n\t[3 (or any value): encrypt file (extension will be '.$#3') |"
-			"\n\t\tempty : decrypt file]"
-			"\n\t[1 (or any value): don't store password hint (be careful!)]"
-			"\n\n", PROGRAM_NAME, TRIOPS_VERSION, PROGRAM_NAME);
-		return 1;
-	}
-
-	//.................................................
-	// (1) & 
-	// (2)
-	// get passphrase and filename
-	/*
-	lstrcpy (szPass, argv[1]);
-	lstrcpy (szFile, argv[2]);
-	*/
-	strcpy (szPassFile, argv[1]);
-	strcpy (szFile, argv[2]);
-	//.................................................
-	// (3)
-	bOutputToTheSameFile=FALSE;
-	if (argc==3)
-		bOutputToTheSameFile=TRUE;
-	else
-		strcpy (szNewFile, argv[3]);
-	if (strcmp(szNewFile, "=")==0) bOutputToTheSameFile=TRUE;
-	//.................................................
-	// (4)
-	// encrypt or decrypt
-	bEncrypt=FALSE;
-	if (argc>=5) {
-		bEncrypt=TRUE;
-		if (strcmp(argv[4], "1")==0 ||
-			strcmp(argv[4], "2")==0) {
-			printf ("\n'%s' value is reserved.\nProcess aborted.\n", argv[4]);
-			return 1;
-		} 
-	} else {
-		// decrypting: so triops Version can be deduced from extension:
-		if (strlen(szFile)>=4) {
-					if (strcmp( szFile+(strlen(szFile)-4), TRIOPS_V3_EXTENSION ) == 0 )
-						triopsVersion=TRIOPS_V3;
-					else {
-						printf ("\nDecrypting, but format could not be deduced from file extension.\nProcess aborted.\n");
-						return 1;
-					}
-		}
-	}
-	//.................................................
-	// (5)
-	// do or do not store password hash
-	bDoNotStorePasswordHash=FALSE;
-	if (argc>=6) bDoNotStorePasswordHash=TRUE;
-	//.................................................
-	
-	// needed by createIV_v3
-	srand((unsigned) time(NULL)); 
 
 #ifdef ANDROID_LIBRARY
 	if (szFile[0] != '/') { // security measure
@@ -343,6 +482,7 @@ int local_triops (int argc, char* const argv[static 4])
 		return 1;
 	}
 #endif
+
 
 	// if output is to the same file, modification timestamp is preserved
 	if (bOutputToTheSameFile) {
@@ -355,10 +495,11 @@ int local_triops (int argc, char* const argv[static 4])
 	}
 
 	// open the file
-	if (bOutputToTheSameFile)
+	if (bOutputToTheSameFile) {
 		hFile = fopen(szFile, "r+b" );
-	else
+	} else {
 		hFile = fopen(szFile, "rb" );
+	}
 
 	if (hFile == NULL)
 	{
@@ -423,14 +564,6 @@ int local_triops (int argc, char* const argv[static 4])
 	}
 
 
-	// obtain password from file:
-	if (!obtainPassword (szPassFile, szPass))
-	{
-		printf ("\nCould not obtain password.\nProcess aborted.\n\n");
-		return 1;
-	}
-
-
 	if (!bEncrypt) {
 		if (triopsVersion==TRIOPS_V3) 
 			LoadIVandHash_v3 (hFile, iv_v3.byteIV, hashedKey_v3.keyB, szFile);
@@ -460,9 +593,6 @@ int local_triops (int argc, char* const argv[static 4])
 				printf ("\nwarning: file '%s' decrypted without password hash checking\n", szFile);
 		}
 	}
-
-	// password isn't needed anymore: overwrite variables as a paranoic security measure:
-	EliminatePasswords(szPassFile, szPass);
 
 	// AFTER password has been checked, (not to create a superfluous empty file), and 
 	// once checked that destination file doesn't exist (upper code), open said destination file:
@@ -753,10 +883,49 @@ int local_triops (int argc, char* const argv[static 4])
 	}
 
 	if (bProgressBar) printf(" 100%c\n",37);
-	printf("\ncompleted\n\n");
+	printf("\n'%s' processed\n\n", szFile);
 
 	// finish
 	return 0;
+}
+
+
+void 
+print_help() {
+    // options: 
+    //  * key: from keyboard (k), from cmdline (p), from file (P)
+    //  * output file (o) [optional if decrypting and input is not stdin]
+    //  * encryption (and method chosen) (e) [decryption, if not present]
+    //  * decryption [optional, as it is the defaut action] (d)
+    //  * store (1; or not: 0) the hash to verify the encryted file (H)
+    //  * file(s) to encrypt/decrypt
+
+		printf ("\n%s v%s.  (goo.gl/lqT5eP) (wp.me/p2FmmK-7Q)\n"
+			"\nEncrypt and decrypt files with secure password checking and\n"
+			"data overwriting, using CHACHA20 and KECCAK-512 algorithms.\n"
+			"\n$ %s {-kpP} [-oedHbh] <file> ...\n\n"
+			"\t<file> ... : one or more files to encrypt/decrypt\n"
+			"\t-k : read passphrase from keyboard\n"
+			"\t-p <password> : password is indicated in cmdline\n"
+			"\t\t(beware of shell history!)\n"
+			"\t-P <password_file> : use hashed <password_file> as password\n"
+			"\t-o <output_file>: do not overwrite, but write to <output_file>\n"
+			"\t\tThis option is not possible with multiple input files.\n"
+			"\t-e <type>: encrypt. "
+			"\n\t\tActually only '-e 3' value is allowed (file extension '%s').\n"
+			"\t\tOther algorithms can be available in the future.\n"
+			"\t-d : decrypt. This is the default action.\n"
+			"\t\tDecryption type is guessed from file extension.\n"
+			"\t\tActually the only decryption extension available is '%s'\n"
+			"\t-H : do not store password hash hint when encrypting\n"
+			"\t\tNote that this way, an incorrect decryption password\n"
+			"\t\twith data overwrting, will render the file unusable.\n"
+			"\t-b : break actions on first error encountered\n"
+			"\t-h : print this help\n\n"
+				,PROGRAM_NAME, TRIOPS_VERSION, PROGRAM_NAME
+				,TRIOPS_V3_EXTENSION, TRIOPS_V3_EXTENSION
+			);
+		return;
 }
 
 
@@ -828,13 +997,65 @@ truncateFileBySize ( char *szFile, unsigned long long bytesToTruncate )
 
 }
 
+// obtain user's password from the keyboard:
+BOOL
+obtainPasswordFromKeyboard (char *szPass) 
+{
+#ifndef ANDROID_LIBRARY
+	int 		i, c;
+
+	// the user wants to insert the password from the keyboard:
+	printf("\n\nEnter password and press [enter]: ");
+	fflush(stdout); // flash stdout
+	i=0;
+	while ( i<(MAX_PASSWORD_LENGTH-1) && (c = getch()) != 13 ) { // read chars until "\n"
+		if (c!=8 && c!=127) {
+			szPass[i]=(char)c;
+			i++;
+			putchar('*');
+		} else { // backspace char pressed: delete previous char!
+			if (i>0) {
+				i--;
+				szPass[i]=0x0;
+				// put caret backwards and erase previous '*'
+				putchar(8); // backspace
+				putchar(32); // space (and so, one char forward)
+				putchar(8); // backspace again
+			}
+		}
+		fflush(stdout);
+	}
+	szPass[i]=0x0; // important!!! to mark the end of the string
+	// delusion eavesdropping password length!
+	for (i = 0;  i < strlen(szPass);  i++, putchar(8), putchar(32), putchar(8));
+	printf("\n\n");
+	// if password length reaches MAX_PASSWORD_LENGTH, input ends abruptly, warn it!
+	if ( i==(MAX_PASSWORD_LENGTH-1) ) {
+		printf ("WARNING: password exceeded max length, and it was truncated to %i chars.\n",
+			MAX_PASSWORD_LENGTH);
+		printf ("Should process continue (y/n)? : ");
+		c=getch();
+		if (c!=121) { 	// anything different from "y"
+			printf ("n\n\n");
+			return FALSE;
+		} else {		// ok, continue
+			printf ("y\n\n");
+		}
+	}
+
+	return TRUE;
+
+#else	// #ifndef ANDROID_LIBRARY
+	return TRUE;
+#endif	// #ifndef/#else ANDROID_LIBRARY
+}
+
 // modification for using binary files as passwords:
 // returns the hash calculated from the contents 
-// of the file passed as a fs path.
-// if the fs path passed starts and ends with '_' char, 
-// the enclosed string is the password itself.
+// of the file passed as a fs path (*szFile).
+// If bExplicitPassword==TRUE the *szFile is the password itself.
 BOOL
-obtainPassword (char *szFile, char *szPass)
+obtainPassword (char *szFile, char *szPass, BOOL bExplicitPassword)
 {
 	FILE *      hFile;
 	unsigned long long 	  nBytesRead;
@@ -843,60 +1064,11 @@ obtainPassword (char *szFile, char *szPass)
 	unsigned long long 	  lFileSize;
 	sph_keccak512_context mc;
 
-	if (szFile[0]=='_' && szFile[strlen(szFile)-1]=='_') { // strlen(szFile)>0 always
-
-#ifndef ANDROID_LIBRARY
-		if (strlen(szFile)==2) {
-			// in this case, the user wants to insert the password from the keyboard:
-			printf("\n\nEnter password and press [enter]: ");
-			fflush(stdout); // flash stdout
-			i=0;
-			while ( i<(MAX_PASSWORD_LENGTH-1) && (c = getch()) != 13 ) { // read chars until "\n"
-				if (c!=8 && c!=127) {
-					szPass[i]=(char)c;
-					i++;
-					putchar('*');
-				} else { // backspace char pressed: delete previous char!
-					if (i>0) {
-						i--;
-						szPass[i]=0x0;
-						// put caret backwards and erase previous '*'
-						putchar(8); // backspace
-						putchar(32); // space (and so, one char forward)
-						putchar(8); // backspace again
-					}
-				}
-				fflush(stdout);
-			}
-			szPass[i]=0x0; // important!!! to mark the end of the string
-			// delusion eavesdropping password length!
-			for (i = 0;  i < strlen(szPass);  i++, putchar(8), putchar(32), putchar(8));
-			printf("\n\n");
-			// if password length reaches MAX_PASSWORD_LENGTH, input ends abruptly, warn it!
-			if ( i==(MAX_PASSWORD_LENGTH-1) ) {
-				printf ("WARNING: password exceeded max length, and it was truncated to %i chars.\n",
-					MAX_PASSWORD_LENGTH);
-				printf ("Should process continue (y/n)? : ");
-				c=getch();
-				if (c!=121) { 	// anything different from "y"
-					printf ("n\n\n");
-					return FALSE;
-				} else {		// ok, continue
-					printf ("y\n\n");
-				}
-			}
-		} else {
-			// ! (strlen(szFile)==2)
-			memcpy(szPass, szFile+1, strlen(szFile)-2); // done !!!
-			szPass[strlen(szFile)-2]=0x0; // important !!! to mark the end of the string
-		}
-
-#else	// #ifndef ANDROID_LIBRARY
-		memcpy(szPass, szFile+1, strlen(szFile)-2); // done !!!
-		szPass[strlen(szFile)-2]=0x0; // important !!! to mark the end of the string
-
-#endif	// #ifndef/#else ANDROID_LIBRARY
-		
+	// obtain password either from keyboard (strlen(szFile)==0) 
+	// or from the passed string szFile directly (bExplicitPassword==TRUE)
+	if (bExplicitPassword==TRUE) {
+		// obtain password from the passed string szFile directly
+		strcpy(szPass, szFile);
 
 		// and now, directly calculate hash here:
 		if (triopsVersion == TRIOPS_V3) {
@@ -909,7 +1081,8 @@ obtainPassword (char *szFile, char *szPass)
 
 
 	} else {
-	// ! (szFile[0]=='_' && szFile[strlen(szFile)-1]=='_') 
+	// ! (bExplicitPassword==TRUE)
+	// obtain password from the file path passed in szFile
 
 		hFile = fopen(szFile, "rb" );
 		if (hFile == NULL)
@@ -971,7 +1144,7 @@ obtainPassword (char *szFile, char *szPass)
 
 		fclose (hFile);
 
-	} // else ends ( if (szFile[0]=='_' && szFile[strlen(szFile)-1]=='_') )
+	} // else ends ( if (bExplicitPassword==TRUE) )
 
 	return TRUE;
 
@@ -980,16 +1153,14 @@ obtainPassword (char *szFile, char *szPass)
 
 // password is not needed anymore: variables are filled not to reside in memory,
 // as a paranoic security measure:
-void EliminatePasswords(char *szPassFile, char *szPass)
+void EliminatePassword(char *szVariable, int LENGTH)
 {
 	int i;
 
-	// both variables are filled: szPassFile isn't needed anymore anyway.
-	for (i=0; i < MAX_PATH; i++) {
-		szPassFile[i]=0xff;
-	}
-	for (i=0; i < MAX_PASSWORD_LENGTH; i++) {
-		szPass[i]=0xff;
+	// variable is refilled:
+	for (i=0; i < LENGTH; i++) {
+		//szVariable[i]=0xff;
+		szVariable[i]=rand() % 256;
 	}
 
 }
@@ -1256,7 +1427,7 @@ createIV_v3 ( LPIV_v3 iv, char *szFile )
 
 	// ok, now let's hash iv in order to obscure IV:
 	// hash from iv, in cTempHash:
-	crypto_hash(cTempHash, cTempData, 8+4+4);
+	crypto_hash(cTempHash, cTempData, 8+IVSIZE_v3);
 
 	// as KECCAK-512 produces 512 bits, let's get just some bytes:
 	for (i=0; i < 8; i++) {
