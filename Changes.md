@@ -1,3 +1,9 @@
+v9.0
+
+* cmdline pipe safe; this implies a change in file format.   
+  Note that previous ".$#3" files are recognized, but new encrypted files   
+  will use ".ooo" as file extension and aren't backwards compatible.   
+  
 v8.0
 
 * cmdline options à la POSIX. Now multiple input files are admitted. Check ./triops -h
