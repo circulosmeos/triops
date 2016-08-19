@@ -13,11 +13,11 @@
 #define _FILE_OFFSET_BITS 64	// stat, fseek
 #define _LARGEFILE_SOURCE
 #define _LARGEFILE64_SOURCE		// off64_t for fseek64
-#define ZERO_LL 0LL				// crafted specially to be used in FSEEK( , , SEEK_END);
+#define ZERO_LL 0LL				// long long zero - crafted specially to be used in FSEEK( , , SEEK_END);
 // .................................................
 
 // .................................................
-#undef WINDOWS_PLATFORM 	// Compile for Unix or for Windows: #undef o #define
+#define WINDOWS_PLATFORM 	// Compile for Unix or for Windows: #undef o #define
 							// this just includes (*nix) or don't (windows) "windef.h"
 #define LOCAL_LITTLE_ENDIAN	// it is important to undef in order to compile
 							// on Big Endian processors (p. ej. SPARC, or Itanium with HP-UX)
@@ -43,6 +43,7 @@
 #include <io.h>		 // _chsize_s, _open (LFS)
 #define FSEEK _fseeki64 // large file support in windows (LFS)
 #endif
+
 #include <string.h>
 #include <fcntl.h>  // open, etc.
 
@@ -51,6 +52,17 @@
 
 #ifndef __sun
 #include <getopt.h> // getopt() compatible with -std=c99
+#endif
+
+// sets binary mode for stdin in Windows
+#define STDIN 0
+#define STDOUT 1
+#ifdef _WIN32
+# include <io.h>
+# include <fcntl.h>
+# define SET_BINARY_MODE(handle) setmode(handle, O_BINARY)
+#else
+# define SET_BINARY_MODE(handle) ((void)0)
 #endif
 
 
