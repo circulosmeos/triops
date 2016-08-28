@@ -27,11 +27,13 @@ Features:
 * Licensed as GPL v3.
    
    
-Before compiling, check in triops.h that next values correctly adjust to your platform, modifying them as convenient:   
+After compiling, check that the provided encrypted file "gplv3.txt.ooo" decrypts correctly, to ensure that endianness determination has ocurred correctly.
 
->    #undef WINDOWS_PLATFORM     // Compile for Unix or for Windows: #undef o #define   
+>    $ triops -p triops! -i gplv3.txt.ooo -O | md5sum   
 
->    #define LOCAL_LITTLE_ENDIAN    // it is important to undef in order to compile on Big Endian processors   
+>    3c34afdc3adf82d2448f12715a255122   
+
+If the hash is different in your case, please #define or #undef LOCAL_LITTLE_ENDIAN in triops.h (it is a commented line: uncomment it - and comment the previous one, as set_endianness.h has failed) until the value obtained is "3c34afdc3adf82d2448f12715a255122".   
 
 Compilation on linux with gcc: a one-line "Makefile" file is provided:   
 
