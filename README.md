@@ -27,7 +27,7 @@ Features:
 * Licensed as GPL v3.
    
    
-After compiling, check that the provided encrypted file "gplv3.txt.ooo" decrypts correctly, to ensure that endianness determination has ocurred correctly.
+After compiling, check that the provided encrypted file "gplv3.txt.ooo" decrypts correctly, to ensure that endianness determination has occured correctly.
 
 >    $ triops -p triops! -i gplv3.txt.ooo -O | md5sum   
 
