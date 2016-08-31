@@ -9,6 +9,7 @@ Last version available and compiled is v9.0. Check [list of changes between vers
 There's an [Android app available here](https://www.github.com/circulosmeos/triops.apk).   
 
 Features:   
+---------
 
 * Code can be compiled with any C99 compiler, no matter platform, endianness or word size (32-64 bits): it has been tested on Windows, linux, Solaris and HP-UX OS's and Intel/AMD, ARM, MIPS, SPARC and Itanium processors.
 * Same content produces different encrypted outputs every time. This is attained with a random initialization vector (IV) stored within the encrypted file.
@@ -27,23 +28,26 @@ Features:
 * Licensed as GPL v3.
    
    
-After compiling, check that the provided encrypted file "gplv3.txt.ooo" decrypts correctly, to ensure that endianness determination has occured correctly.
+Compilation
+-----------
 
->    $ triops -p triops! -i gplv3.txt.ooo -O | md5sum   
-
->    3c34afdc3adf82d2448f12715a255122   
-
-If the hash is different in your case, please #define or #undef LOCAL_LITTLE_ENDIAN in triops.h (it is a commented line: uncomment it - and comment the previous one, as set_endianness.h has failed) until the value obtained is "3c34afdc3adf82d2448f12715a255122".   
-
-Compilation on linux with gcc: a one-line "Makefile" file is provided:   
+Compilation on linux with gcc: a one-line script file is provided:   
 
 >    $ bash Makefile   
 
 For other compilers or platforms, modify the gcc command line contained in the Makefile file as convenient. Remember to use "-O3" ([fast executable optimizations](https://gcc.gnu.org/onlinedocs/gcc-4.7.1/gcc/Optimize-Options.html#Optimize-Options)). 
    
+After compiling, **check that the provided encrypted file "gplv3.txt.ooo" decrypts correctly, to ensure that endianness determination has occured correctly**.
+
+>    $ triops -p triops! -i gplv3.txt.ooo -O | md5sum   
+
+>    3c34afdc3adf82d2448f12715a255122   
+
+If the hash is different in your case, please #define or #undef LOCAL_LITTLE_ENDIAN in triops.h (it is a commented line: uncomment it - and comment the previous one, as set_endianness.h has failed) until the value obtained is "3c34afdc3adf82d2448f12715a255122".     
    
    
-Examples of use:   
+Examples of use
+---------------
 
 >    $ ./triops.exe -h   
     
@@ -129,9 +133,17 @@ Testing the app on-the-fly using stdin and stdout :-o
 >    $ cat bigDataFile | triops -P password.tiff -e 3 -O | triops -P password.tiff -O | md5sum   
     
    
+Testing
+-------
+
 There's a Perl script for triops executable testing against random content files. [See gist code](https://gist.github.com/circulosmeos/dfdbbadcb45e810babfee31945ba0172).   
-   
-   
+
+For CHACHA20 and KECCAK testing see below.
+
+
+CHACHA20 & KECCAK Algorithms
+----------------------------
+
 Algorithms are based on reference implementation of CHACHA20 implemented by algorithm's creator (D. J. Bernstein), and the implementation of KECCAK made by Thomas Pornin. Both can be found at this website:   
 
 [http://hyperelliptic.org/ebats/supercop-20141124.tar.bz2](http://hyperelliptic.org/ebats/supercop-20141124.tar.bz2)   
