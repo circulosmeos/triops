@@ -26,8 +26,14 @@ Features:
 * Reduced program size: < 100 kiB on all platforms.
 * [easily portable to Android](https://www.github.com/circulosmeos/triops.apk) as a JNI library. Check "ANDROID_LIBRARY" in the source code.
 * Licensed as GPL v3.
-   
-   
+
+
+File format and operation
+-------------------------
+
+Please [see post here describing triops' file format and general operation](https://circulosmeos.wordpress.com/2016/08/31/triops-operation-and-file-format-description-v9-0/).
+
+
 Compilation
 -----------
 
