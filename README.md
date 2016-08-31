@@ -129,6 +129,8 @@ Testing the app on-the-fly using stdin and stdout :-o
 >    $ cat bigDataFile | triops -P password.tiff -e 3 -O | triops -P password.tiff -O | md5sum   
     
    
+There's a Perl script for triops executable testing against random content files. [See gist code](https://gist.github.com/circulosmeos/dfdbbadcb45e810babfee31945ba0172).   
+   
    
 Algorithms are based on reference implementation of CHACHA20 implemented by algorithm's creator (D. J. Bernstein), and the implementation of KECCAK made by Thomas Pornin. Both can be found at this website:   
 
@@ -144,9 +146,12 @@ CHACHA20 algorithm has been tested against test vectors found here:
 
 [http://tools.ietf.org/html/draft-nir-cfrg-chacha20-poly1305-04#appendix-A.2](http://tools.ietf.org/html/draft-nir-cfrg-chacha20-poly1305-04#appendix-A.2)   
 
+Note that a skeleton for CHACHA20 testing is provided with triops' code, ready to compile as stand-alone: see [chacha20/chacha20_test.c](https://github.com/circulosmeos/triops/blob/master/chacha20/chacha20_test.c).   
+
 KECCAK algorithm has been tested against test vectors found here:   
 
 [http://keccak.noekeon.org/KeccakKAT-3.zip](http://keccak.noekeon.org/KeccakKAT-3.zip)   
 
     /KeccakKAT/ShortMsgKAT_512.txt   
 
+Note that a skeleton for KECCAK testing is provided with triops' code, ready to compile as stand-alone: see [keccak/sha3_test.c](https://github.com/circulosmeos/triops/blob/master/keccak/sha3_test.c).   
