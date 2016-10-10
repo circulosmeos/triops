@@ -296,7 +296,9 @@ int local_triops (int argc, char* const argv[static 5])
 		bHashAlreadyObtained[i]=FALSE;
 
     int opt = 0;
+#ifdef ANDROID_LIBRARY
     optind = 0; // *must* be reset in order to use getopt() in a .so lib (#ifdef ANDROID_LIBRARY)
+#endif
     // options: 
     //  * key: from keyboard (k), from cmdline (p), from file (P)
     //  * output file (o) [optional if decrypting and input is not stdin]
