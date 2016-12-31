@@ -2,11 +2,24 @@ triops: a simple command line tool for encryption/decryption of files.
 
 It uses [CHACHA20](http://en.wikipedia.org/wiki/Salsa20#ChaCha_variant) as algorithm for encryption/decryption and [KECCAK](http://en.wikipedia.org/wiki/SHA-3)-512 as hash algorithm.   
 
-Executables for some platforms (linux, Windows, HP-UX, Solaris and [Android](https://www.github.com/circulosmeos/triops.apk)) are available [here](https://circulosmeos.wordpress.com/2015/05/18/triops-a-multiplatform-cmdline-encryption-tool-using-chacha20-keccak).    
-
 Last version available and compiled is v9.0. Check [list of changes between versions](Changes.md).   
 
 There's an [Android app available here](https://www.github.com/circulosmeos/triops.apk).   
+
+
+Installation
+------------
+
+There is a PPA repository available for Ubuntu (contains versions from *precise* to *zesty*):
+
+    $ sudo add-apt-repository ppa:roberto.s.galende/triops
+    $ sudo apt-get update
+    $ sudo apt-get install triops
+
+Executables for some platforms (linux, Windows, HP-UX, Solaris and [Android](https://www.github.com/circulosmeos/triops.apk)) are available [here](https://circulosmeos.wordpress.com/2015/05/18/triops-a-multiplatform-cmdline-encryption-tool-using-chacha20-keccak).    
+
+There's an [Android app available here](https://www.github.com/circulosmeos/triops.apk).   
+
 
 Features:   
 ---------
@@ -34,24 +47,6 @@ File format and operation
 Please [see post here describing triops' file format and general operation](https://circulosmeos.wordpress.com/2016/08/31/triops-operation-and-file-format-description-v9-0/).
 
 
-Compilation
------------
-
-Compilation on linux with gcc: a one-line script file is provided:   
-
->    $ bash Makefile   
-
-For other compilers or platforms, modify the gcc command line contained in the Makefile file as convenient. Remember to use "-O3" ([fast executable optimizations](https://gcc.gnu.org/onlinedocs/gcc-4.7.1/gcc/Optimize-Options.html#Optimize-Options)). 
-   
-After compiling, **check that the provided encrypted file "gplv3.txt.ooo" decrypts correctly, to ensure that endianness determination has occured correctly**.
-
->    $ triops -p triops! -i gplv3.txt.ooo -O | md5sum   
-
->    3c34afdc3adf82d2448f12715a255122   
-
-If the hash is different in your case, please #define or #undef LOCAL_LITTLE_ENDIAN in triops.h (it is a commented line: uncomment it - and comment the previous one, as set_endianness.h has failed) until the value obtained is "3c34afdc3adf82d2448f12715a255122".     
-   
-   
 Examples of use
 ---------------
 
@@ -138,6 +133,24 @@ Testing the app on-the-fly using stdin and stdout :-o
    
 >    $ cat bigDataFile | triops -P password.tiff -e 3 -O | triops -P password.tiff -O | md5sum   
     
+   
+Compilation
+-----------
+
+Compilation on linux with gcc: a one-line script file is provided:   
+
+>    $ bash Makefile   
+
+For other compilers or platforms, modify the gcc command line contained in the Makefile file as convenient. Remember to use "-O3" ([fast executable optimizations](https://gcc.gnu.org/onlinedocs/gcc-4.7.1/gcc/Optimize-Options.html#Optimize-Options)). 
+   
+After compiling, **check that the provided encrypted file "gplv3.txt.ooo" decrypts correctly, to ensure that endianness determination has occured correctly**.
+
+>    $ triops -p triops! -i gplv3.txt.ooo -O | md5sum   
+
+>    3c34afdc3adf82d2448f12715a255122   
+
+If the hash is different in your case, please #define or #undef LOCAL_LITTLE_ENDIAN in triops.h (it is a commented line: uncomment it - and comment the previous one, as set_endianness.h has failed) until the value obtained is "3c34afdc3adf82d2448f12715a255122".     
+
    
 Testing
 -------
