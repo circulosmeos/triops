@@ -17,6 +17,9 @@
 #define ZERO_LL 0LL             // long long zero - crafted specially to be used in FSEEK( , , SEEK_END);
 // .................................................
 
+// truncate() glibc's requirement
+#define _XOPEN_SOURCE 500
+
 // .................................................
 // Endianness determination: 
 // Little Endian processors (Intel/AMD x86 & x86_64, or ARM ...) 
@@ -87,7 +90,7 @@
 #include <string.h>
 #include <fcntl.h>  // open, etc.
 
-#include <unistd.h> // getopt()
+#include <unistd.h> // getopt(), truncate()
 #include <ctype.h>  // isprint()
 
 #ifndef __sun
