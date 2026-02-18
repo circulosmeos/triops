@@ -75,7 +75,7 @@ int getch(void);
 
 
 
-#define TRIOPS_VERSION "9.0"
+#define TRIOPS_VERSION "9.0.1"
 #define PROGRAM_NAME "triops"
 
 #define BUFFERSIZE 16384 // for CHACHA20: multiple of 64 bytes to avoid bad implementation (http://goo.gl/DHCLz1)
@@ -1434,7 +1434,7 @@ unsigned long long read_data_from_file(
 		// v9.0: stdin must be read one by one char ...
 		int iBytesRead;
 		do {
-			if (iBytesRead=fread(lpFileBuffer+nBytesRead, 1, iBufferSize, hFile))
+			if ((iBytesRead=fread(lpFileBuffer+nBytesRead, 1, iBufferSize, hFile)))
 				nBytesRead+=iBytesRead;
 		} while ( iBytesRead>0 && nBytesRead<(iBufferSize*iBlocks) && !feof(hFile) );
 	}
